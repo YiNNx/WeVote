@@ -8,7 +8,7 @@ import (
 	"github.com/99designs/gqlgen/graphql/handler"
 	"github.com/99designs/gqlgen/graphql/playground"
 
-	"github.com/YiNNx/WeVote/internal/graph"
+	"github.com/YiNNx/WeVote/internal/gqlgen"
 	"github.com/YiNNx/WeVote/internal/schema"
 )
 
