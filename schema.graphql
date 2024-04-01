@@ -1,0 +1,8 @@
+type Query {
+  getUserVotes(username: String!): Int
+  getTicket: String
+}
+
+type Mutation {
+  vote(users: [String!]!, ticket: String!): String
+}
