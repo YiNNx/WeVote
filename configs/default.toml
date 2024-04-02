@@ -1,0 +1,24 @@
+[server]
+debug_mode = true
+host = 'localhost'
+port = 8088
+
+[log]
+path = 'output/log'
+
+[postgres]
+host = 'localhost'
+port = 5432
+user = 'postgres'
+password = 'postgres'
+dbname = 'wevote'
+
+[redis]
+addr = '127.0.0.1:6377'
+
+[ticket]
+secret = 'secret'
+spec = 2  # seconds
+
+[captcha]
+recaptcha_secret = 'secret'

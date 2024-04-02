@@ -36,6 +36,8 @@ Redis 记录 TID 对应的投票次数，TTL为2s
 
 投票数据使用 Redis 进行缓存，使用 Write-behind 策略异步回写数据库
 
+使用 reCAPTCHA v3 对接口进行人机验证，防御恶意刷票
+
 ### 避免缓存穿透
 
 - 加个布隆过滤器
