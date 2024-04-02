@@ -11,11 +11,17 @@ import (
 
 const ReCaptchaVerifyUrl = "https://recaptcha.net/recaptcha/api/siteverify"
 
-func VerifyReCaptcha(response string, secret string) (bool, error) {
+var ReChaptcha *reCaptcha
+
+type reCaptcha struct {
+	secret string
+}
+
+func (r *reCaptcha) Verify(response string) (bool, error) {
 	// secret	Required. The shared key between your site and reCAPTCHA.
 	// response	Required. The user response token provided by the reCAPTCHA client-side integration on your site.
 	reqData := url.Values{
-		"secret":   {secret},
+		"secret":   {r.secret},
 		"response": {response},
 	}
 	resp, err := http.PostForm(ReCaptchaVerifyUrl, reqData)
@@ -44,4 +50,8 @@ func VerifyReCaptcha(response string, secret string) (bool, error) {
 	}
 
 	return captchaResp.Success, nil
+}
+
+func InitReChaptcha(secret string) {
+	ReChaptcha = &reCaptcha{secret}
 }

@@ -10,11 +10,6 @@ import (
 
 const tokenTypeTicket = "ticket"
 
-var (
-	secret string
-	spec   int
-)
-
 type Ticket struct {
 	jwt.Token
 }
@@ -47,7 +42,14 @@ func (c *TicketClaims) Valid() error {
 	return vErr
 }
 
-func New() (string, error) {
+var Generator *generator
+
+type generator struct {
+	secret string
+	spec   int
+}
+
+func (g *generator) Generate() (string, error) {
 	ticket := Ticket{
 		jwt.Token{
 			Method: jwt.SigningMethodHS256,
@@ -57,15 +59,15 @@ func New() (string, error) {
 			},
 			Claims: &TicketClaims{
 				IssuedAt:  time.Now().Unix(),
-				ExpiresAt: time.Now().Add(time.Duration(spec) * time.Second).Unix(),
+				ExpiresAt: time.Now().Add(time.Duration(g.spec) * time.Second).Unix(),
 				SubjectId: uuid.New().String(),
 			},
 		},
 	}
-	return ticket.SignedString(secret)
+	return ticket.SignedString(g.secret)
 }
 
-func Init(ticketSecret string, ticketSpec int) {
-	secret = ticketSecret
-	spec = ticketSpec
+func InitGenerator(secret string, spec int) {
+	Generator.secret = secret
+	Generator.spec = spec
 }

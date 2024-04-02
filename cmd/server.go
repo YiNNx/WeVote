@@ -1,30 +1,41 @@
 package main
 
 import (
-	"log"
 	"net/http"
 	"os"
 
 	"github.com/99designs/gqlgen/graphql/handler"
-	"github.com/99designs/gqlgen/graphql/playground"
 
+	"github.com/YiNNx/WeVote/internal/config"
 	"github.com/YiNNx/WeVote/internal/gqlgen"
+	"github.com/YiNNx/WeVote/internal/jobs"
+	"github.com/YiNNx/WeVote/internal/models"
 	"github.com/YiNNx/WeVote/internal/schema"
+	"github.com/YiNNx/WeVote/internal/utils/ticket"
+	"github.com/YiNNx/WeVote/pkg/captcha"
+	"github.com/YiNNx/WeVote/pkg/log"
 )
 
-const defaultPort = "8080"
-
 func main() {
-	port := os.Getenv("PORT")
-	if port == "" {
-		port = defaultPort
-	}
+	confPath := os.Getenv("CONF_PATH")
+	conf := config.Init(confPath)
 
-	srv := handler.NewDefaultServer(graph.NewExecutableSchema(graph.Config{Resolvers: &schema.Resolver{}}))
+	log.InitLogger(conf.Log.Path, conf.Server.DebugMode)
+	ticket.InitGenerator(conf.Ticket.Secret, conf.Ticket.Spec)
+	jobs.InitJobs(conf.Ticket.Spec)
+	captcha.InitReChaptcha(conf.Captcha.RecaptchaSecret)
+	models.InitDataBaseConnections(
+		conf.Postgres.Host,
+		conf.Postgres.Port,
+		conf.Postgres.User,
+		conf.Postgres.Password,
+		conf.Postgres.Dbname,
+		conf.Redis.Addrs,
+	)
 
-	http.Handle("/", playground.Handler("GraphQL playground", "/query"))
-	http.Handle("/query", srv)
-
-	log.Printf("connect to http://localhost:%s/ for GraphQL playground", port)
-	log.Fatal(http.ListenAndServe(":"+port, nil))
+	http.Handle("/", handler.NewDefaultServer(
+		gqlgen.NewExecutableSchema(
+			gqlgen.Config{Resolvers: &schema.Resolver{}},
+		)))
+	log.Logger.Fatal(http.ListenAndServe(conf.Server.Addr, nil))
 }

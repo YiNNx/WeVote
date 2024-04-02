@@ -6,8 +6,6 @@ import (
 	"github.com/BurntSushi/toml"
 )
 
-var C = &Config{}
-
 type Config struct {
 	Server   Server   `toml:"server"`
 	Postgres Postgres `toml:"postgres"`
@@ -19,13 +17,13 @@ type Config struct {
 
 type Server struct {
 	DebugMode bool   `toml:"debug_mode"`
-	Host      string `toml:"host"`
-	Port      string `toml:"port"`
+	Addr      string `toml:"addr"`
 }
 
 type Ticket struct {
-	Secret string `toml:"secret"`
-	Spec   int    `toml:"spec"`
+	Secret     string `toml:"secret"`
+	Spec       int    `toml:"spec"`
+	UpperLimit int    `toml:"upper_limit"`
 }
 
 type Log struct {
@@ -41,17 +39,19 @@ type Postgres struct {
 }
 
 type Redis struct {
-	Addr string `toml:"addr"`
+	Addrs []string `toml:"addr"`
 }
 
 type Captcha struct {
 	RecaptchaSecret string `toml:"recaptcha_secret"`
 }
 
-func Init(path string) {
-	_, err := toml.DecodeFile(path, C)
+func Init(path string) *Config {
+	var config *Config
+	_, err := toml.DecodeFile(path, config)
 	if err != nil {
 		panic(err)
 	}
 	log.Println("Config loaded.")
+	return config
 }

@@ -17,7 +17,7 @@ import (
 
 var Logger *logrus.Logger
 
-func Init(path string, debug bool) {
+func InitLogger(path string, debug bool) {
 	Logger = getLogger(path, debug)
 	Logger.Info("logger started")
 }
