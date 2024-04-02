@@ -54,10 +54,14 @@ func InitDataBaseConnections(postgresDSN string, redisAddrs []string) {
 
 type rtx struct {
 	redis.Pipeliner
+	ctx context.Context
 }
 
-func BeginRedisTx() rtx {
-	return rtx{rdb.Pipeline()}
+func BeginRedisTx(ctx context.Context) rtx {
+	return rtx{
+		Pipeliner: rdb.Pipeline(),
+		ctx:       ctx,
+	}
 }
 
 type tx struct {

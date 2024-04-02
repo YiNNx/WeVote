@@ -44,7 +44,8 @@ func (c *TicketClaims) Valid() error {
 	return vErr
 }
 
-func GenerateTicket() (string, error) {
+func GenerateTicket() (ticketID string, ticketStr string, err error) {
+	ticketID = uuid.New().String()
 	ticket := Ticket{
 		jwt.Token{
 			Method: jwt.SigningMethodHS256,
@@ -55,9 +56,10 @@ func GenerateTicket() (string, error) {
 			Claims: &TicketClaims{
 				IssuedAt:  time.Now().Unix(),
 				ExpiresAt: time.Now().Add(config.C.Ticket.Expiration.Duration).Unix(),
-				SubjectId: uuid.New().String(),
+				SubjectId: ticketID,
 			},
 		},
 	}
-	return ticket.SignedString(config.C.Ticket.Secret)
+	ticketStr, err = ticket.SignedString(config.C.Ticket.Secret)
+	return ticketID, ticketStr, err
 }

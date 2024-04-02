@@ -2,28 +2,48 @@ package schema
 
 import (
 	"context"
-	"fmt"
+
+	"github.com/golang-jwt/jwt"
 
 	"github.com/YiNNx/WeVote/internal/common/errors"
 	"github.com/YiNNx/WeVote/internal/config"
 	"github.com/YiNNx/WeVote/internal/services"
+	parser "github.com/YiNNx/WeVote/internal/utils/ticket"
 )
 
 // Vote is the resolver for the vote field.
 func (r *mutationResolver) Vote(ctx context.Context, users []string, ticket string) (*string, error) {
+	status := "failed"
 	if int64(len(users)) > config.C.Ticket.UpperLimit {
-		return nil, errors.TicketUsageLimitExceed
+		return &status, errors.TicketUsageLimitExceed
 	}
+
+	token, err := jwt.ParseWithClaims(ticket, &parser.TicketClaims{}, func(t *jwt.Token) (interface{}, error) { return config.C.Ticket.Secret, nil })
+	if err != nil {
+		return &status, errors.TicketInvalid.WithErrDetail(err)
+	}
+	claims, ok := token.Claims.(*parser.TicketClaims)
+	if !ok {
+		return &status, errors.TicketInvalid
+	}
+	ticketID := claims.SubjectId
 
 	// remove duplicate data
 	userSet := make(services.UserSet, len(users))
 	for _, user := range users {
 		userSet[user] = struct{}{}
 	}
-	panic(fmt.Errorf("not implemented: Vote - vote"))
+
+	err = services.Vote(ctx, ticketID, userSet)
+	if err != nil {
+		return &status, err
+	}
+	status = "succeed"
+	return &status, nil
 }
 
 // GetUserVotes is the resolver for the getUserVotes field.
 func (r *queryResolver) GetUserVotes(ctx context.Context, username string) (*int, error) {
-	panic(fmt.Errorf("not implemented: GetUserVotes - getUserVotes"))
+	count, err := services.GetVoteCount(ctx, username)
+	return &count, err
 }

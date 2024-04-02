@@ -29,6 +29,7 @@ require (
 	github.com/BurntSushi/toml v1.3.2
 	github.com/agnivade/levenshtein v1.1.1 // indirect
 	github.com/fastly/go-utils v0.0.0-20180712184237-d95a45783239 // indirect
+	github.com/go-redis/redis v6.15.9+incompatible
 	github.com/golang-jwt/jwt v3.2.2+incompatible
 	github.com/google/uuid v1.6.0 // indirect
 	github.com/gorilla/websocket v1.5.0 // indirect

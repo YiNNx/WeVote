@@ -17,7 +17,7 @@ type CronJob struct {
 var cronJobs = []CronJob{
 	{
 		Spec: fmt.Sprintf("@every %s", config.C.Ticket.Expiration.Duration),
-		Func: ticketGenerate,
+		Func: jobTicketGenerate,
 	},
 }
 

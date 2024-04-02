@@ -1,5 +1,7 @@
 package errors
 
+import "github.com/YiNNx/WeVote/internal/config"
+
 type customErr struct {
 	Msg string
 }
@@ -10,9 +12,12 @@ func newError(msg string) customErr {
 	}
 }
 
-func (e *customErr) WithDetail(msg string) *customErr {
+func (e *customErr) WithErrDetail(err error) *customErr {
+	if !config.C.Server.DebugMode {
+		return e
+	}
 	return &customErr{
-		Msg: e.Msg + ": " + msg,
+		Msg: e.Msg + ": " + e.Error(),
 	}
 }
 
@@ -27,5 +32,7 @@ var (
 	TicketUsageLimitExceed = newError("Ticket 使用超过上限")
 	UserNotFound           = newError("用户不存在")
 	ServerInternal         = newError("服务器内部错误")
+	DataLoadFailed         = newError("数据读取异常")
+	DataUpdateFailed       = newError("数据更新异常")
 	GetTicketFailed        = newError("获取 Ticket 失败")
 )
