@@ -27,9 +27,11 @@ func (e customErr) Error() string {
 
 var (
 	InvalidParams          = newError("参数错误")
-	TicketNeeded           = newError("需要 Ticket")
+	TicketRequired         = newError("需要 Ticket")
 	TicketInvalid          = newError("Ticket 无效")
 	TicketUsageLimitExceed = newError("Ticket 使用超过上限")
+	CaptchaTokenRequired   = newError("需人机验证")
+	CaptchaTokenInvalid    = newError("人机验证失败")
 	UserNotFound           = newError("用户不存在")
 	ServerInternal         = newError("服务器内部错误")
 	DataLoadFailed         = newError("数据读取异常")

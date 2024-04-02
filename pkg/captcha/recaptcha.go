@@ -17,12 +17,12 @@ type reCaptchaClient struct {
 	secret string
 }
 
-func (r *reCaptchaClient) Verify(response string) (bool, error) {
+func (r *reCaptchaClient) Verify(responseToken string) (bool, error) {
 	// secret	Required. The shared key between your site and reCAPTCHA.
 	// response	Required. The user response token provided by the reCAPTCHA client-side integration on your site.
 	reqData := url.Values{
 		"secret":   {r.secret},
-		"response": {response},
+		"response": {responseToken},
 	}
 	resp, err := http.PostForm(ReCaptchaVerifyUrl, reqData)
 	if err != nil {

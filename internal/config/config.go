@@ -42,6 +42,7 @@ type Redis struct {
 }
 
 type Captcha struct {
+	Open            bool   `toml:"open"`
 	RecaptchaSecret string `toml:"recaptcha_secret"`
 }
 

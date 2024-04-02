@@ -46,7 +46,7 @@ type DirectiveRoot struct {
 
 type ComplexityRoot struct {
 	Mutation struct {
-		Vote func(childComplexity int, users []string, ticket string) int
+		Vote func(childComplexity int, users []string, ticket string, recaptchaToken *string) int
 	}
 
 	Query struct {
@@ -56,7 +56,7 @@ type ComplexityRoot struct {
 }
 
 type MutationResolver interface {
-	Vote(ctx context.Context, users []string, ticket string) (*string, error)
+	Vote(ctx context.Context, users []string, ticket string, recaptchaToken *string) (string, error)
 }
 type QueryResolver interface {
 	GetUserVotes(ctx context.Context, username string) (*int, error)
@@ -92,7 +92,7 @@ func (e *executableSchema) Complexity(typeName, field string, childComplexity in
 			return 0, false
 		}
 
-		return e.complexity.Mutation.Vote(childComplexity, args["users"].([]string), args["ticket"].(string)), true
+		return e.complexity.Mutation.Vote(childComplexity, args["users"].([]string), args["ticket"].(string), args["recaptchaToken"].(*string)), true
 
 	case "Query.getTicket":
 		if e.complexity.Query.GetTicket == nil {
@@ -217,13 +217,13 @@ func (ec *executionContext) introspectType(name string) (*introspection.Type, er
 }
 
 var sources = []*ast.Source{
-	{Name: "../../schema.graphql", Input: `type Query {
+	{Name: "../../scripts/schema.graphql", Input: `type Query {
   getUserVotes(username: String!): Int
   getTicket: String
 }
 
 type Mutation {
-  vote(users: [String!]!, ticket: String!): String
+  vote(users: [String!]!, ticket: String!,recaptchaToken: String): String!
 }`, BuiltIn: false},
 }
 var parsedSchema = gqlparser.MustLoadSchema(sources...)
@@ -253,6 +253,15 @@ func (ec *executionContext) field_Mutation_vote_args(ctx context.Context, rawArg
 		}
 	}
 	args["ticket"] = arg1
+	var arg2 *string
+	if tmp, ok := rawArgs["recaptchaToken"]; ok {
+		ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("recaptchaToken"))
+		arg2, err = ec.unmarshalOString2ᚖstring(ctx, tmp)
+		if err != nil {
+			return nil, err
+		}
+	}
+	args["recaptchaToken"] = arg2
 	return args, nil
 }
 
@@ -338,18 +347,21 @@ func (ec *executionContext) _Mutation_vote(ctx context.Context, field graphql.Co
 	}()
 	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
 		ctx = rctx // use context from middleware stack in children
-		return ec.resolvers.Mutation().Vote(rctx, fc.Args["users"].([]string), fc.Args["ticket"].(string))
+		return ec.resolvers.Mutation().Vote(rctx, fc.Args["users"].([]string), fc.Args["ticket"].(string), fc.Args["recaptchaToken"].(*string))
 	})
 	if err != nil {
 		ec.Error(ctx, err)
 		return graphql.Null
 	}
 	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
 		return graphql.Null
 	}
-	res := resTmp.(*string)
+	res := resTmp.(string)
 	fc.Result = res
-	return ec.marshalOString2ᚖstring(ctx, field.Selections, res)
+	return ec.marshalNString2string(ctx, field.Selections, res)
 }
 
 func (ec *executionContext) fieldContext_Mutation_vote(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
@@ -2402,6 +2414,9 @@ func (ec *executionContext) _Mutation(ctx context.Context, sel ast.SelectionSet)
 			out.Values[i] = ec.OperationContext.RootResolverMiddleware(innerCtx, func(ctx context.Context) (res graphql.Marshaler) {
 				return ec._Mutation_vote(ctx, field)
 			})
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
 		default:
 			panic("unknown field " + strconv.Quote(field.Name))
 		}

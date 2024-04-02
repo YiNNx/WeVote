@@ -9,22 +9,37 @@ import (
 	"github.com/YiNNx/WeVote/internal/config"
 	"github.com/YiNNx/WeVote/internal/services"
 	parser "github.com/YiNNx/WeVote/internal/utils/ticket"
+	"github.com/YiNNx/WeVote/pkg/captcha"
+)
+
+const (
+	statusFailed    = "failed"
+	statusSucceeded = "succeeded"
 )
 
 // Vote is the resolver for the vote field.
-func (r *mutationResolver) Vote(ctx context.Context, users []string, ticket string) (*string, error) {
-	status := "failed"
+func (r *mutationResolver) Vote(ctx context.Context, users []string, ticket string, recaptchaToken *string) (string, error) {
+	if config.C.Captcha.Open {
+		if recaptchaToken == nil {
+			return statusFailed, errors.CaptchaTokenRequired
+		}
+		success, err := captcha.Client.Verify(*recaptchaToken)
+		if err != nil || !success {
+			return statusFailed, errors.CaptchaTokenInvalid
+		}
+	}
+
 	if int64(len(users)) > config.C.Ticket.UpperLimit {
-		return &status, errors.TicketUsageLimitExceed
+		return statusFailed, errors.TicketUsageLimitExceed
 	}
 
 	token, err := jwt.ParseWithClaims(ticket, &parser.TicketClaims{}, func(t *jwt.Token) (interface{}, error) { return config.C.Ticket.Secret, nil })
 	if err != nil {
-		return &status, errors.TicketInvalid.WithErrDetail(err)
+		return statusFailed, errors.TicketInvalid.WithErrDetail(err)
 	}
 	claims, ok := token.Claims.(*parser.TicketClaims)
 	if !ok {
-		return &status, errors.TicketInvalid
+		return statusFailed, errors.TicketInvalid
 	}
 	ticketID := claims.SubjectId
 
@@ -36,10 +51,9 @@ func (r *mutationResolver) Vote(ctx context.Context, users []string, ticket stri
 
 	err = services.Vote(ctx, ticketID, userSet)
 	if err != nil {
-		return &status, err
+		return statusFailed, err
 	}
-	status = "succeed"
-	return &status, nil
+	return statusSucceeded, nil
 }
 
 // GetUserVotes is the resolver for the getUserVotes field.

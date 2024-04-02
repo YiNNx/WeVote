@@ -17,4 +17,5 @@ expiration = '2s'
 upper_limit = 10000
 
 [captcha]
+open = false
 recaptcha_secret = 'secret'
