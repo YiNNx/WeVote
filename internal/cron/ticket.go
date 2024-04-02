@@ -1,4 +1,4 @@
-package jobs
+package cron
 
 import (
 	"github.com/YiNNx/WeVote/internal/services"
@@ -7,7 +7,7 @@ import (
 
 func ticketGenerate() {
 	var err error
-	services.Ticket, err = ticket.Generator.Generate()
+	services.Ticket, err = ticket.GenerateTicket()
 	if err != nil {
 		panic(err)
 	}

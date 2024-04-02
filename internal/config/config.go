@@ -2,9 +2,12 @@ package config
 
 import (
 	"log"
+	"time"
 
 	"github.com/BurntSushi/toml"
 )
+
+var C *Config
 
 type Config struct {
 	Server   Server   `toml:"server"`
@@ -21,9 +24,9 @@ type Server struct {
 }
 
 type Ticket struct {
-	Secret     string `toml:"secret"`
-	Spec       int    `toml:"spec"`
-	UpperLimit int    `toml:"upper_limit"`
+	Secret     string   `toml:"secret"`
+	Expiration duration `toml:"expiration"`
+	UpperLimit int64    `toml:"upper_limit"`
 }
 
 type Log struct {
@@ -31,11 +34,7 @@ type Log struct {
 }
 
 type Postgres struct {
-	Host     string `toml:"host"`
-	Port     string `toml:"port"`
-	User     string `toml:"user"`
-	Password string `toml:"password"`
-	Dbname   string `toml:"dbname"`
+	DSN string `toml:"dsn"`
 }
 
 type Redis struct {
@@ -46,12 +45,23 @@ type Captcha struct {
 	RecaptchaSecret string `toml:"recaptcha_secret"`
 }
 
-func Init(path string) *Config {
+type duration struct {
+	time.Duration
+}
+
+func (d *duration) UnmarshalText(text []byte) error {
+	var err error
+	d.Duration, err = time.ParseDuration(string(text))
+	return err
+}
+
+func Init(path string) error {
 	var config *Config
 	_, err := toml.DecodeFile(path, config)
 	if err != nil {
-		panic(err)
+		return err
 	}
 	log.Println("Config loaded.")
-	return config
+	C = config
+	return nil
 }

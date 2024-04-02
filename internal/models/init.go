@@ -16,14 +16,10 @@ var (
 	rdb *redis.Ring
 )
 
-func InitDataBaseConnections(pgHost, pgPort, pgUser, pgPassword, pgDbname string, redisAddrs []string) {
+func InitDataBaseConnections(postgresDSN string, redisAddrs []string) {
 	var err error
-	dsn := fmt.Sprintf(
-		"host=%s user=%s password=%s dbname=%s port=%s sslmode=disable TimeZone=Asia/Shanghai",
-		pgHost, pgUser, pgPassword, pgDbname, pgPort,
-	)
 
-	db, err = gorm.Open(postgres.Open(dsn), &gorm.Config{})
+	db, err = gorm.Open(postgres.New(postgres.Config{DSN: postgresDSN}))
 	if err != nil {
 		log.Logger.Error("postgres connection failed: ", err)
 		return
@@ -54,4 +50,20 @@ func InitDataBaseConnections(pgHost, pgPort, pgUser, pgPassword, pgDbname string
 	}
 
 	log.Logger.Info("Redis server connected!")
+}
+
+type rtx struct {
+	redis.Pipeliner
+}
+
+func BeginRedisTx() rtx {
+	return rtx{rdb.Pipeline()}
+}
+
+type tx struct {
+	*gorm.DB
+}
+
+func BeginPostgresTx() tx {
+	return tx{db.Begin()}
 }

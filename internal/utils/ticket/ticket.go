@@ -6,6 +6,8 @@ import (
 
 	"github.com/golang-jwt/jwt"
 	"github.com/google/uuid"
+
+	"github.com/YiNNx/WeVote/internal/config"
 )
 
 const tokenTypeTicket = "ticket"
@@ -42,14 +44,7 @@ func (c *TicketClaims) Valid() error {
 	return vErr
 }
 
-var Generator *generator
-
-type generator struct {
-	secret string
-	spec   int
-}
-
-func (g *generator) Generate() (string, error) {
+func GenerateTicket() (string, error) {
 	ticket := Ticket{
 		jwt.Token{
 			Method: jwt.SigningMethodHS256,
@@ -59,15 +54,10 @@ func (g *generator) Generate() (string, error) {
 			},
 			Claims: &TicketClaims{
 				IssuedAt:  time.Now().Unix(),
-				ExpiresAt: time.Now().Add(time.Duration(g.spec) * time.Second).Unix(),
+				ExpiresAt: time.Now().Add(config.C.Ticket.Expiration.Duration).Unix(),
 				SubjectId: uuid.New().String(),
 			},
 		},
 	}
-	return ticket.SignedString(g.secret)
-}
-
-func InitGenerator(secret string, spec int) {
-	Generator.secret = secret
-	Generator.spec = spec
+	return ticket.SignedString(config.C.Ticket.Secret)
 }

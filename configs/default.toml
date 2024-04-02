@@ -6,18 +6,14 @@ addr = ':8088'
 path = 'output/log'
 
 [postgres]
-host = 'localhost'
-port = '5432'
-user = 'postgres'
-password = 'postgres'
-dbname = 'wevote'
+dsn = "postgres://localhost:5432/wevote?sslmode=disable"
 
 [redis]
 addr = [':6377', ':6378']
 
 [ticket]
 secret = 'secret'
-spec = 2            # seconds
+expiration = '2s'
 upper_limit = 10000
 
 [captcha]
