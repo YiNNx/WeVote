@@ -10,8 +10,8 @@ import (
 	"github.com/YiNNx/WeVote/internal/gqlgen"
 	"github.com/YiNNx/WeVote/internal/models"
 	"github.com/YiNNx/WeVote/internal/schema"
+	"github.com/YiNNx/WeVote/internal/utils/log"
 	"github.com/YiNNx/WeVote/pkg/captcha"
-	"github.com/YiNNx/WeVote/pkg/log"
 )
 
 func main() {
@@ -22,8 +22,8 @@ func main() {
 	}
 
 	log.InitLogger(config.C.Log.Path, config.C.Server.DebugMode)
-	captcha.InitClient(config.C.Captcha.RecaptchaSecret)
-	models.InitDataBaseConnections(config.C.Postgres.DSN, config.C.Redis.Addrs)
+	captcha.NewReCaptchaClient(config.C.Captcha.RecaptchaSecret)
+	models.InitConnections(config.C.Postgres.DSN, config.C.Redis.Addrs)
 
 	http.Handle("/", handler.NewDefaultServer(
 		gqlgen.NewExecutableSchema(

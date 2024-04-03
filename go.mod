@@ -28,6 +28,7 @@ require (
 require (
 	github.com/BurntSushi/toml v1.3.2
 	github.com/agnivade/levenshtein v1.1.1 // indirect
+	github.com/bits-and-blooms/bitset v1.13.0
 	github.com/fastly/go-utils v0.0.0-20180712184237-d95a45783239 // indirect
 	github.com/golang-jwt/jwt v3.2.2+incompatible
 	github.com/google/uuid v1.6.0

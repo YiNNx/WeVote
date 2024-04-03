@@ -6,8 +6,8 @@ import (
 	"github.com/YiNNx/WeVote/internal/config"
 	"github.com/YiNNx/WeVote/internal/models"
 	"github.com/YiNNx/WeVote/internal/services"
+	"github.com/YiNNx/WeVote/internal/utils/log"
 	"github.com/YiNNx/WeVote/internal/utils/ticket"
-	"github.com/YiNNx/WeVote/pkg/log"
 )
 
 func jobTicketGenerate() {

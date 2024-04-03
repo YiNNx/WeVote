@@ -4,11 +4,10 @@ import (
 	"context"
 	"fmt"
 
+	"github.com/YiNNx/WeVote/internal/utils/log"
 	"github.com/redis/go-redis/v9"
 	"gorm.io/driver/postgres"
 	"gorm.io/gorm"
-
-	"github.com/YiNNx/WeVote/pkg/log"
 )
 
 var (
@@ -16,7 +15,7 @@ var (
 	rdb *redis.Ring
 )
 
-func InitDataBaseConnections(postgresDSN string, redisAddrs []string) {
+func InitConnections(postgresDSN string, redisAddrs []string) {
 	var err error
 
 	db, err = gorm.Open(postgres.New(postgres.Config{DSN: postgresDSN}))

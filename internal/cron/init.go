@@ -6,7 +6,7 @@ import (
 	"github.com/robfig/cron/v3"
 
 	"github.com/YiNNx/WeVote/internal/config"
-	"github.com/YiNNx/WeVote/pkg/log"
+	"github.com/YiNNx/WeVote/internal/utils/log"
 )
 
 type CronJob struct {

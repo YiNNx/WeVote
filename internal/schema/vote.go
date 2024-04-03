@@ -23,7 +23,7 @@ func (r *mutationResolver) Vote(ctx context.Context, users []string, ticket stri
 		if recaptchaToken == nil {
 			return statusFailed, errors.CaptchaTokenRequired
 		}
-		success, err := captcha.Client.Verify(*recaptchaToken)
+		success, err := captcha.NewReCaptchaClient(config.C.Captcha.RecaptchaSecret).Verify(*recaptchaToken)
 		if err != nil || !success {
 			return statusFailed, errors.CaptchaTokenInvalid
 		}
