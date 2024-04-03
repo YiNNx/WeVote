@@ -16,15 +16,11 @@ type BloomFilter struct {
 	bitSet BitSetProvider
 }
 
-func New(m uint, k uint, bitSet BitSetProvider) *BloomFilter {
-	return &BloomFilter{m: m, k: k, bitSet: bitSet}
-}
-
-func EstimateParameters(n uint, p float64) (uint, uint) {
+func NewWithEstimates(n uint, p float64, bitSet BitSetProvider) *BloomFilter {
 	m := math.Ceil(float64(n) * math.Log(p) / math.Log(1.0/math.Pow(2.0, math.Ln2)))
 	k := math.Ln2*m/float64(n) + 0.5
 
-	return uint(m), uint(k)
+	return &BloomFilter{m: uint(m), k: uint(k), bitSet: bitSet}
 }
 
 func (f *BloomFilter) Add(data []byte) error {
