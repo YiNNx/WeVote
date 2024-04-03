@@ -1,24 +1,18 @@
 package cron
 
 import (
-	"fmt"
-
 	"github.com/robfig/cron/v3"
 
-	"github.com/YiNNx/WeVote/internal/config"
-	"github.com/YiNNx/WeVote/internal/utils/log"
+	"github.com/YiNNx/WeVote/internal/common/log"
 )
 
-type CronJob struct {
+type cronJob struct {
 	Spec string
 	Func func()
 }
 
-var cronJobs = []CronJob{
-	{
-		Spec: fmt.Sprintf("@every %s", config.C.Ticket.Expiration.Duration),
-		Func: jobTicketGenerate,
-	},
+var cronJobs = []cronJob{
+	cronJobTicketGrant,
 }
 
 func InitJobs() {

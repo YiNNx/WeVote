@@ -14,13 +14,13 @@ type Ticket struct {
 	jwt.Token
 }
 
-type TicketClaims struct {
+type Claims struct {
 	IssuedAt  int64  `json:"iat"`
 	ExpiresAt int64  `json:"exp"`
 	SubjectId string `json:"sub"`
 }
 
-func (c *TicketClaims) Valid() error {
+func (c *Claims) Valid() error {
 	vErr := new(jwt.ValidationError)
 	now := time.Now().Unix()
 
@@ -42,7 +42,16 @@ func (c *TicketClaims) Valid() error {
 	return vErr
 }
 
-func GenerateTicket() (ticketID string, ticketStr string, err error) {
+type Provider interface {
+	Generate() (ticketID string, ticketStr string, err error)
+}
+
+type provider struct {
+	secret     string
+	expiration time.Duration
+}
+
+func (p *provider) Generate() (ticketID string, ticketStr string, err error) {
 	ticketID = uuid.New().String()
 	ticket := Ticket{
 		jwt.Token{
@@ -51,23 +60,30 @@ func GenerateTicket() (ticketID string, ticketStr string, err error) {
 				"typ": "wevote-ticket",
 				"alg": jwt.SigningMethodHS256.Alg(),
 			},
-			Claims: &TicketClaims{
+			Claims: &Claims{
 				IssuedAt:  time.Now().Unix(),
-				ExpiresAt: time.Now().Add(config.C.Ticket.Expiration.Duration).Unix(),
+				ExpiresAt: time.Now().Add(p.expiration).Unix(),
 				SubjectId: ticketID,
 			},
 		},
 	}
-	ticketStr, err = ticket.SignedString(config.C.Ticket.Secret)
+	ticketStr, err = ticket.SignedString(p.secret)
 	return ticketID, ticketStr, err
 }
 
-func ParseAndVerifyTicket(ticketStr string) (ticketClaims *TicketClaims, err error) {
-	token, err := jwt.ParseWithClaims(ticketStr, &TicketClaims{}, func(t *jwt.Token) (interface{}, error) { return config.C.Ticket.Secret, nil })
+func NewProvider(secret string, expiration time.Duration) Provider {
+	return &provider{
+		secret:     secret,
+		expiration: expiration,
+	}
+}
+
+func ParseAndVerifyTicket(ticketStr string) (ticketClaims *Claims, err error) {
+	token, err := jwt.ParseWithClaims(ticketStr, &Claims{}, func(t *jwt.Token) (interface{}, error) { return config.C.Ticket.Secret, nil })
 	if err != nil {
 		return nil, err
 	}
-	claims, ok := token.Claims.(*TicketClaims)
+	claims, ok := token.Claims.(*Claims)
 	if !ok {
 		return nil, fmt.Errorf("invalid token claims")
 	}

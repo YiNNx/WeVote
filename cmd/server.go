@@ -6,11 +6,11 @@ import (
 
 	"github.com/99designs/gqlgen/graphql/handler"
 
+	"github.com/YiNNx/WeVote/internal/common/log"
 	"github.com/YiNNx/WeVote/internal/config"
-	"github.com/YiNNx/WeVote/internal/gqlgen"
+	"github.com/YiNNx/WeVote/internal/schema/gqlgen"
 	"github.com/YiNNx/WeVote/internal/models"
 	"github.com/YiNNx/WeVote/internal/schema"
-	"github.com/YiNNx/WeVote/internal/utils/log"
 	"github.com/YiNNx/WeVote/pkg/captcha"
 )
 

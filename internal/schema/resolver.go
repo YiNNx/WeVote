@@ -1,6 +1,6 @@
 package schema
 
-import "github.com/YiNNx/WeVote/internal/gqlgen"
+import "github.com/YiNNx/WeVote/internal/schema/gqlgen"
 
 type Resolver struct{}
 
