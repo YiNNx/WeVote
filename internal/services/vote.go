@@ -11,19 +11,17 @@ import (
 	"github.com/YiNNx/WeVote/internal/models"
 )
 
-type UserSet map[string]struct{}
-
-func Vote(ctx context.Context, ticketID string, users UserSet) error {
+func Vote(ctx context.Context, ticketID string, users UsernameSet) error {
 	rtx := models.BeginRedisTx(ctx)
 	userCount := len(users)
 	count, err := rtx.IncrTicketUsageCount(ticketID, userCount)
 	if err != nil {
 		rtx.Discard()
-		return errors.DataUpdateFailed.WithErrDetail(err)
+		return errors.ErrDataUpdate.WithErrDetail(err)
 	}
 	if count > config.C.Ticket.UpperLimit {
 		rtx.Discard()
-		return errors.TicketUsageLimitExceed
+		return errors.ErrTicketUsageExceed
 	}
 
 	userList := make([]string, 0, len(users))
@@ -31,7 +29,7 @@ func Vote(ctx context.Context, ticketID string, users UserSet) error {
 		_, err = rtx.IncrVoteCount(user)
 		if err != nil {
 			rtx.Discard()
-			return errors.DataUpdateFailed.WithErrDetail(err)
+			return errors.ErrDataUpdate.WithErrDetail(err)
 		}
 		userList = append(userList, user)
 	}
@@ -39,12 +37,12 @@ func Vote(ctx context.Context, ticketID string, users UserSet) error {
 	err = rtx.RecordVoteCountModified(userList)
 	if err != nil {
 		rtx.Discard()
-		return errors.DataUpdateFailed.WithErrDetail(err)
+		return errors.ErrDataUpdate.WithErrDetail(err)
 	}
 
 	_, err = rtx.Exec(context.Background())
 	if err != nil {
-		return errors.DataUpdateFailed.WithErrDetail(err)
+		return errors.ErrDataUpdate.WithErrDetail(err)
 	}
 	return nil
 }
@@ -52,14 +50,14 @@ func Vote(ctx context.Context, ticketID string, users UserSet) error {
 func GetVoteCount(ctx context.Context, user string) (int, error) {
 	count, err := models.GetVoteCount(ctx, user)
 	if err == redis.Nil {
-		return 0, errors.UserNotFound // TODO:
+		return 0, errors.ErrInvalidUsernameExisted
 	}
 	if err != nil {
-		return 0, errors.DataLoadFailed.WithErrDetail(err)
+		return 0, errors.ErrDataLoad.WithErrDetail(err)
 	}
 	res, err := strconv.Atoi(count)
 	if err != nil {
-		return 0, errors.DataLoadFailed.WithErrDetail(err)
+		return 0, errors.ErrDataLoad.WithErrDetail(err)
 	}
 	return res, nil
 }

@@ -7,17 +7,23 @@ import (
 	"gorm.io/gorm"
 )
 
-type Vote struct {
+type User struct {
 	gorm.Model
-	Username string
-	Count    int
+	Username  string `gorm:"unique;not null"`
+	VoteCount int    `gorm:"not null;default:0"`
+}
+
+func GetAllUsernames() ([]string, error) {
+	var usernames []string
+	err := db.Model(&User{}).Select("username").Find(&usernames).Error
+	return usernames, err
 }
 
 var keyVoteCount = "vote-count-%s"
 var keyVoteCountModifiedSet = "vote-count-modified"
 
 func (tx rtx) IncrVoteCount(user string) (count int64, err error) {
-	key := fmt.Sprintf(keyTicketUsageCount, user)
+	key := fmt.Sprintf(keyVoteCount, user)
 	return tx.Incr(tx.ctx, key).Result()
 }
 

@@ -3,13 +3,7 @@ package schema
 import (
 	"context"
 
-	"github.com/golang-jwt/jwt"
-
-	"github.com/YiNNx/WeVote/internal/common/errors"
-	"github.com/YiNNx/WeVote/internal/config"
 	"github.com/YiNNx/WeVote/internal/services"
-	parser "github.com/YiNNx/WeVote/internal/utils/ticket"
-	"github.com/YiNNx/WeVote/pkg/captcha"
 )
 
 const (
@@ -19,45 +13,35 @@ const (
 
 // Vote is the resolver for the vote field.
 func (r *mutationResolver) Vote(ctx context.Context, users []string, ticket string, recaptchaToken *string) (string, error) {
-	if config.C.Captcha.Open {
-		if recaptchaToken == nil {
-			return statusFailed, errors.CaptchaTokenRequired
-		}
-		success, err := captcha.NewReCaptchaClient(config.C.Captcha.RecaptchaSecret).Verify(*recaptchaToken)
-		if err != nil || !success {
-			return statusFailed, errors.CaptchaTokenInvalid
-		}
-	}
-
-	if int64(len(users)) > config.C.Ticket.UpperLimit {
-		return statusFailed, errors.TicketUsageLimitExceed
-	}
-
-	token, err := jwt.ParseWithClaims(ticket, &parser.TicketClaims{}, func(t *jwt.Token) (interface{}, error) { return config.C.Ticket.Secret, nil })
+	err := services.VerifyCaptchaIfCaptchaOpen(recaptchaToken)
 	if err != nil {
-		return statusFailed, errors.TicketInvalid.WithErrDetail(err)
+		return statusFailed, err
 	}
-	claims, ok := token.Claims.(*parser.TicketClaims)
-	if !ok {
-		return statusFailed, errors.TicketInvalid
-	}
-	ticketID := claims.SubjectId
 
-	// remove duplicate data
-	userSet := make(services.UserSet, len(users))
-	for _, user := range users {
-		userSet[user] = struct{}{}
+	ticketID, err := services.ParseAndVerifyTicket(ticket)
+	if err != nil {
+		return statusFailed, err
+	}
+
+	userSet, err := services.DedupicateAndBloomFilter(ctx, users)
+	if err != nil {
+		return statusFailed, err
 	}
 
 	err = services.Vote(ctx, ticketID, userSet)
 	if err != nil {
 		return statusFailed, err
 	}
+
 	return statusSucceeded, nil
 }
 
 // GetUserVotes is the resolver for the getUserVotes field.
 func (r *queryResolver) GetUserVotes(ctx context.Context, username string) (*int, error) {
+	err := services.BloomFilter(ctx, username)
+	if err != nil {
+		return nil, err
+	}
 	count, err := services.GetVoteCount(ctx, username)
 	return &count, err
 }

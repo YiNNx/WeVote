@@ -15,6 +15,26 @@ var (
 	rdb *redis.Ring
 )
 
+type rtx struct {
+	redis.Pipeliner
+	ctx context.Context
+}
+
+type tx struct {
+	*gorm.DB
+}
+
+func BeginRedisTx(ctx context.Context) rtx {
+	return rtx{
+		Pipeliner: rdb.Pipeline(),
+		ctx:       ctx,
+	}
+}
+
+func BeginPostgresTx() tx {
+	return tx{db.Begin()}
+}
+
 func InitConnections(postgresDSN string, redisAddrs []string) {
 	var err error
 
@@ -23,7 +43,7 @@ func InitConnections(postgresDSN string, redisAddrs []string) {
 		log.Logger.Error("postgres connection failed: ", err)
 		return
 	}
-	err = db.AutoMigrate(&Vote{})
+	err = db.AutoMigrate(&User{})
 	if err != nil {
 		log.Logger.Error("postgres migrate failed: ", err)
 		return
@@ -49,24 +69,4 @@ func InitConnections(postgresDSN string, redisAddrs []string) {
 	}
 
 	log.Logger.Info("Redis server connected!")
-}
-
-type rtx struct {
-	redis.Pipeliner
-	ctx context.Context
-}
-
-func BeginRedisTx(ctx context.Context) rtx {
-	return rtx{
-		Pipeliner: rdb.Pipeline(),
-		ctx:       ctx,
-	}
-}
-
-type tx struct {
-	*gorm.DB
-}
-
-func BeginPostgresTx() tx {
-	return tx{db.Begin()}
 }

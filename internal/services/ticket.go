@@ -1,12 +1,24 @@
 package services
 
-import "github.com/YiNNx/WeVote/internal/common/errors"
+import (
+	"github.com/YiNNx/WeVote/internal/common/errors"
+	"github.com/YiNNx/WeVote/internal/utils/ticket"
+)
 
-var Ticket *string
+var sharedTicket *string
 
-func GetTicket() (*string, error) {
-	if Ticket == nil {
-		return nil, errors.GetTicketFailed
+func GetCurrentTicket() (*string, error) {
+	if sharedTicket == nil {
+		return nil, errors.ErrGetTicket
 	}
-	return Ticket, nil
+	return sharedTicket, nil
+}
+
+func ParseAndVerifyTicket(ticketStr string) (ticketID string, err error) {
+	claims, err := ticket.ParseAndVerifyTicket(ticketStr)
+	if err != nil {
+		return "", errors.ErrInvalidTicket.WithErrDetail(err)
+	}
+	ticketID = claims.SubjectId
+	return ticketID, nil
 }

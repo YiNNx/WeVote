@@ -1,21 +1,23 @@
-package bloom
+package models
 
 import (
 	"context"
-	"math"
 
 	"github.com/redis/go-redis/v9"
 )
 
-var redisBitSetMaxLength = uint(math.Pow(2, 32))
+const (
+	keyVoteBloomFilter   = "vote-bloom-filter"
+	redisBitSetMaxLength = 4 * 1024 * 1024 * 1024
+)
 
 type RedisBitSet struct {
 	rdb redis.UniversalClient
 	key string
 }
 
-func NewRedisBitSet(rdb redis.UniversalClient, key string) *RedisBitSet {
-	return &RedisBitSet{rdb, key}
+func NewRedisBitSet() *RedisBitSet {
+	return &RedisBitSet{rdb, keyVoteBloomFilter}
 }
 
 func (b *RedisBitSet) Set(ctx context.Context, offsets []uint) error {

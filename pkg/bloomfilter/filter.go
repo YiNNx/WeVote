@@ -1,13 +1,14 @@
-package bloom
+package bloomfilter
 
 import (
+	"context"
 	"hash/fnv"
 	"math"
 )
 
 type BitSetProvider interface {
-	Set([]uint) error
-	Test([]uint) (bool, error)
+	Set(context.Context, []uint) error
+	Test(context.Context, []uint) (bool, error)
 }
 
 type BloomFilter struct {
@@ -23,18 +24,18 @@ func NewWithEstimates(n uint, p float64, bitSet BitSetProvider) *BloomFilter {
 	return &BloomFilter{m: uint(m), k: uint(k), bitSet: bitSet}
 }
 
-func (f *BloomFilter) Add(data []byte) error {
+func (f *BloomFilter) Add(ctx context.Context, data []byte) error {
 	locations := f.getLocations(data)
-	err := f.bitSet.Set(locations)
+	err := f.bitSet.Set(ctx, locations)
 	if err != nil {
 		return err
 	}
 	return nil
 }
 
-func (f *BloomFilter) Exists(data []byte) (bool, error) {
+func (f *BloomFilter) Exists(ctx context.Context, data []byte) (bool, error) {
 	locations := f.getLocations(data)
-	isSet, err := f.bitSet.Test(locations)
+	isSet, err := f.bitSet.Test(ctx, locations)
 	if err != nil {
 		return false, err
 	}

@@ -10,8 +10,6 @@ import (
 	"github.com/YiNNx/WeVote/internal/config"
 )
 
-const tokenTypeTicket = "ticket"
-
 type Ticket struct {
 	jwt.Token
 }
@@ -50,7 +48,7 @@ func GenerateTicket() (ticketID string, ticketStr string, err error) {
 		jwt.Token{
 			Method: jwt.SigningMethodHS256,
 			Header: map[string]interface{}{
-				"typ": tokenTypeTicket,
+				"typ": "wevote-ticket",
 				"alg": jwt.SigningMethodHS256.Alg(),
 			},
 			Claims: &TicketClaims{
@@ -62,4 +60,16 @@ func GenerateTicket() (ticketID string, ticketStr string, err error) {
 	}
 	ticketStr, err = ticket.SignedString(config.C.Ticket.Secret)
 	return ticketID, ticketStr, err
+}
+
+func ParseAndVerifyTicket(ticketStr string) (ticketClaims *TicketClaims, err error) {
+	token, err := jwt.ParseWithClaims(ticketStr, &TicketClaims{}, func(t *jwt.Token) (interface{}, error) { return config.C.Ticket.Secret, nil })
+	if err != nil {
+		return nil, err
+	}
+	claims, ok := token.Claims.(*TicketClaims)
+	if !ok {
+		return nil, fmt.Errorf("invalid token claims")
+	}
+	return claims, nil
 }
