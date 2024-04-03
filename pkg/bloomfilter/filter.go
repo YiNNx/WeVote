@@ -11,20 +11,18 @@ type BitSetProvider interface {
 	Test(context.Context, []uint) (bool, error)
 }
 
-type BloomFilter struct {
+type BloomFilter interface {
+	Add(ctx context.Context, data []byte) error
+	Exists(ctx context.Context, data []byte) (bool, error)
+}
+
+type bloomFilter struct {
 	m      uint
 	k      uint
 	bitSet BitSetProvider
 }
 
-func NewWithEstimates(n uint, p float64, bitSet BitSetProvider) *BloomFilter {
-	m := math.Ceil(float64(n) * math.Log(p) / math.Log(1.0/math.Pow(2.0, math.Ln2)))
-	k := math.Ln2*m/float64(n) + 0.5
-
-	return &BloomFilter{m: uint(m), k: uint(k), bitSet: bitSet}
-}
-
-func (f *BloomFilter) Add(ctx context.Context, data []byte) error {
+func (f *bloomFilter) Add(ctx context.Context, data []byte) error {
 	locations := f.getLocations(data)
 	err := f.bitSet.Set(ctx, locations)
 	if err != nil {
@@ -33,7 +31,7 @@ func (f *BloomFilter) Add(ctx context.Context, data []byte) error {
 	return nil
 }
 
-func (f *BloomFilter) Exists(ctx context.Context, data []byte) (bool, error) {
+func (f *bloomFilter) Exists(ctx context.Context, data []byte) (bool, error) {
 	locations := f.getLocations(data)
 	isSet, err := f.bitSet.Test(ctx, locations)
 	if err != nil {
@@ -46,7 +44,7 @@ func (f *BloomFilter) Exists(ctx context.Context, data []byte) (bool, error) {
 	return true, nil
 }
 
-func (f *BloomFilter) getLocations(data []byte) []uint {
+func (f *bloomFilter) getLocations(data []byte) []uint {
 	locations := make([]uint, f.k)
 	hasher := fnv.New64()
 	hasher.Write(data)
@@ -58,4 +56,11 @@ func (f *BloomFilter) getLocations(data []byte) []uint {
 		locations[i] = uint(hashValue % uint64(f.m))
 	}
 	return locations
+}
+
+func NewWithEstimates(n uint, p float64, bitSet BitSetProvider) *bloomFilter {
+	m := math.Ceil(float64(n) * math.Log(p) / math.Log(1.0/math.Pow(2.0, math.Ln2)))
+	k := math.Ln2*m/float64(n) + 0.5
+
+	return &bloomFilter{m: uint(m), k: uint(k), bitSet: bitSet}
 }

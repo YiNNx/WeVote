@@ -3,7 +3,9 @@ package schema
 import (
 	"context"
 
-	"github.com/YiNNx/WeVote/internal/services"
+	"github.com/YiNNx/WeVote/internal/services/captcha"
+	ticketsrv "github.com/YiNNx/WeVote/internal/services/ticket"
+	"github.com/YiNNx/WeVote/internal/services/vote"
 )
 
 const (
@@ -13,22 +15,22 @@ const (
 
 // Vote is the resolver for the vote field.
 func (r *mutationResolver) Vote(ctx context.Context, users []string, ticket string, recaptchaToken *string) (string, error) {
-	err := services.VerifyCaptchaIfCaptchaOpen(recaptchaToken)
+	err := captcha.VerifyCaptchaIfCaptchaOpen(recaptchaToken)
 	if err != nil {
 		return statusFailed, err
 	}
 
-	ticketID, err := services.ParseAndVerifyTicket(ticket)
+	ticketClaims, err := ticketsrv.Parser.ParseAndVerify(ticket)
 	if err != nil {
 		return statusFailed, err
 	}
 
-	userSet, err := services.DedupicateAndBloomFilter(ctx, users)
+	userSet, err := vote.DedupicateAndBloomFilter(ctx, users)
 	if err != nil {
 		return statusFailed, err
 	}
 
-	err = services.Vote(ctx, ticketID, userSet)
+	err = vote.Vote(ctx, ticketClaims.SubjectId, userSet)
 	if err != nil {
 		return statusFailed, err
 	}
@@ -38,10 +40,10 @@ func (r *mutationResolver) Vote(ctx context.Context, users []string, ticket stri
 
 // GetUserVotes is the resolver for the getUserVotes field.
 func (r *queryResolver) GetUserVotes(ctx context.Context, username string) (*int, error) {
-	err := services.BloomFilter(ctx, username)
+	err := vote.BloomFilter(ctx, username)
 	if err != nil {
 		return nil, err
 	}
-	count, err := services.GetVoteCount(ctx, username)
+	count, err := vote.GetVoteCount(ctx, username)
 	return &count, err
 }

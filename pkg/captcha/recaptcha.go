@@ -9,24 +9,24 @@ import (
 	"strings"
 )
 
-const ReCaptchaVerifyUrl = "https://recaptcha.net/recaptcha/api/siteverify"
+const recaptchaVerifyUrl = "https://recaptcha.net/recaptcha/api/siteverify"
 
 type CaptchaClient interface {
 	Verify(string) (bool, error)
 }
 
-type ReCaptchaClient struct {
+type recaptchaClient struct {
 	secret string
 }
 
-func (r *ReCaptchaClient) Verify(responseToken string) (bool, error) {
+func (r *recaptchaClient) Verify(responseToken string) (bool, error) {
 	// secret	Required. The shared key between your site and reCAPTCHA.
 	// response	Required. The user response token provided by the reCAPTCHA client-side integration on your site.
 	reqData := url.Values{
 		"secret":   {r.secret},
 		"response": {responseToken},
 	}
-	resp, err := http.PostForm(ReCaptchaVerifyUrl, reqData)
+	resp, err := http.PostForm(recaptchaVerifyUrl, reqData)
 	if err != nil {
 		return false, err
 	}
@@ -54,6 +54,6 @@ func (r *ReCaptchaClient) Verify(responseToken string) (bool, error) {
 	return captchaResp.Success, nil
 }
 
-func NewReCaptchaClient(secret string) CaptchaClient {
-	return &ReCaptchaClient{secret}
+func NewClient(secret string) CaptchaClient {
+	return &recaptchaClient{secret}
 }

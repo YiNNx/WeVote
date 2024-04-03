@@ -15,7 +15,7 @@ var cronJobs = []cronJob{
 	cronJobTicketGrant,
 }
 
-func InitJobs() {
+func InitCronJobs() {
 	c := cron.New(cron.WithSeconds())
 
 	for _, job := range cronJobs {

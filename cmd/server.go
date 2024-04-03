@@ -8,9 +8,9 @@ import (
 
 	"github.com/YiNNx/WeVote/internal/common/log"
 	"github.com/YiNNx/WeVote/internal/config"
-	"github.com/YiNNx/WeVote/internal/schema/gqlgen"
 	"github.com/YiNNx/WeVote/internal/models"
 	"github.com/YiNNx/WeVote/internal/schema"
+	"github.com/YiNNx/WeVote/internal/schema/gqlgen"
 	"github.com/YiNNx/WeVote/pkg/captcha"
 )
 
@@ -22,7 +22,7 @@ func main() {
 	}
 
 	log.InitLogger(config.C.Log.Path, config.C.Server.DebugMode)
-	captcha.NewReCaptchaClient(config.C.Captcha.RecaptchaSecret)
+	captcha.NewClient(config.C.Captcha.RecaptchaSecret)
 	models.InitConnections(config.C.Postgres.DSN, config.C.Redis.Addrs)
 
 	http.Handle("/", handler.NewDefaultServer(

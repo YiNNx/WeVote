@@ -1,4 +1,4 @@
-package services
+package vote
 
 import (
 	"context"
@@ -10,31 +10,9 @@ import (
 	"github.com/YiNNx/WeVote/pkg/bloomfilter"
 )
 
-var bloomFilterUsername *bloomfilter.BloomFilter
+var bloomFilterUsername bloomfilter.BloomFilter
 
 type UsernameSet map[string]struct{}
-
-func InitUsernameBloomFilter() error {
-	bloomFilterUsername = bloomfilter.NewWithEstimates(
-		1000000, 0.01,
-		models.NewRedisBitSet(),
-	)
-
-	usernames, err := models.GetAllUsernames()
-	if err != nil {
-		return err
-	}
-
-	ctx, cancel := context.WithTimeout(context.Background(), 500*time.Millisecond)
-	defer cancel()
-	for _, username := range usernames {
-		err := bloomFilterUsername.Add(ctx, []byte(username))
-		if err != nil {
-			return err
-		}
-	}
-	return nil
-}
 
 // DedupicateAndBloomFilter 合并重复参数，并使用布隆过滤器来检验是否含有无效字段，若含有无效字段则返回错误
 func DedupicateAndBloomFilter(ctx context.Context, usernames []string) (UsernameSet, error) {
@@ -61,6 +39,28 @@ func BloomFilter(ctx context.Context, username string) error {
 	}
 	if !ok {
 		return errors.ErrInvalidUsernameExisted
+	}
+	return nil
+}
+
+func InitUsernameBloomFilter() error {
+	bloomFilterUsername = bloomfilter.NewWithEstimates(
+		1000000, 0.01,
+		models.NewRedisBitSet(),
+	)
+
+	usernames, err := models.GetAllUsernames()
+	if err != nil {
+		return err
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), 500*time.Millisecond)
+	defer cancel()
+	for _, username := range usernames {
+		err := bloomFilterUsername.Add(ctx, []byte(username))
+		if err != nil {
+			return err
+		}
 	}
 	return nil
 }
