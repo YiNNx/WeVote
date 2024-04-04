@@ -34,7 +34,7 @@ func Vote(ctx context.Context, ticketID string, users UsernameSet) error {
 		userList = append(userList, user)
 	}
 
-	err = rtx.RecordVoteCountModified(userList)
+	err = rtx.RecordUserModified(userList)
 	if err != nil {
 		rtx.Discard()
 		return errors.ErrDataUpdate.WithErrDetail(err)
@@ -48,7 +48,7 @@ func Vote(ctx context.Context, ticketID string, users UsernameSet) error {
 }
 
 func GetVoteCount(ctx context.Context, user string) (int, error) {
-	count, err := models.GetVoteCount(ctx, user)
+	count, err := models.GetVoteCountByCache(ctx, user)
 	if err == redis.Nil {
 		return 0, errors.ErrInvalidUsernameExisted
 	}
