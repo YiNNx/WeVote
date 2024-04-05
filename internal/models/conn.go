@@ -36,10 +36,10 @@ func BeginPostgresTx() tx {
 	return tx{db.Begin()}
 }
 
-func InitConnections(postgresDSN string, redisAddrs []string) {
+func initPostgresConn(dsn string) {
 	var err error
 
-	db, err = gorm.Open(postgres.New(postgres.Config{DSN: postgresDSN}))
+	db, err = gorm.Open(postgres.New(postgres.Config{DSN: dsn}))
 	if err != nil {
 		log.Logger.Error("postgres connection failed: ", err)
 		return
@@ -51,9 +51,13 @@ func InitConnections(postgresDSN string, redisAddrs []string) {
 	}
 
 	log.Logger.Info("PostgreSQL server connected!")
+}
 
-	rdbAddrs := make(map[string]string, len(redisAddrs))
-	for i, addr := range redisAddrs {
+func initRedisClusterConns(addrs []string) {
+	var err error
+
+	rdbAddrs := make(map[string]string, len(addrs))
+	for i, addr := range addrs {
 		rdbAddrs[fmt.Sprintf("shard%d", i)] = addr
 	}
 
@@ -70,4 +74,10 @@ func InitConnections(postgresDSN string, redisAddrs []string) {
 	}
 
 	log.Logger.Info("Redis server connected!")
+}
+
+func InitIOWrapper(postgresDSN string, redisAddrs []string) {
+	initPostgresConn(postgresDSN)
+	initRedisClusterConns(redisAddrs)
+	initVoteDataWrapper(rdb, db)
 }

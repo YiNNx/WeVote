@@ -23,7 +23,7 @@ func main() {
 
 	log.InitLogger(config.C.Log.Path, config.C.Server.DebugMode)
 	captcha.NewClient(config.C.Captcha.RecaptchaSecret)
-	models.InitConnections(config.C.Postgres.DSN, config.C.Redis.Addrs)
+	models.InitIOWrapper(config.C.Postgres.DSN, config.C.Redis.Addrs)
 
 	http.Handle("/", handler.NewDefaultServer(
 		gqlgen.NewExecutableSchema(
