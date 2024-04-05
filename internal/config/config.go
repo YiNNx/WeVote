@@ -14,6 +14,7 @@ type Config struct {
 	Postgres Postgres `toml:"postgres"`
 	Redis    Redis    `toml:"redis"`
 	Log      Log      `toml:"log"`
+	Vote     Vote     `toml:"vote"`
 	Ticket   Ticket   `toml:"ticket"`
 	Captcha  Captcha  `toml:"captcha"`
 }
@@ -23,10 +24,15 @@ type Server struct {
 	Addr      string `toml:"addr"`
 }
 
+type Vote struct {
+	CacheTTL        time.Duration `toml:"cache_ttl"`
+	WriteBackPeriod duration      `toml:"write_back_period"`
+}
+
 type Ticket struct {
 	Secret     string   `toml:"secret"`
-	Expiration duration `toml:"expiration"`
-	UpperLimit int64    `toml:"upper_limit"`
+	TTL        duration `toml:"ttl"`
+	UsageLimit int      `toml:"usage_limit"`
 }
 
 type Log struct {

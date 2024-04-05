@@ -1,9 +1,9 @@
 package models
 
 import (
-	"context"
-	"fmt"
+	"time"
 
+	"github.com/YiNNx/WeVote/pkg/bloomfilter"
 	"gorm.io/gorm"
 )
 
@@ -13,56 +13,27 @@ type User struct {
 	VoteCount int    `gorm:"not null;default:0"`
 }
 
-func GetAllUsernames() ([]string, error) {
+func FindAllExistedUser() ([]string, error) {
 	var usernames []string
 	err := db.Model(&User{}).Select("username").Find(&usernames).Error
 	return usernames, err
 }
 
-func GetVoteCountByUsername(username string) (int, error) {
-	var user User
-	err := db.Where("username = ?", username).Take(&user).Error
-	return user.VoteCount, err
+const (
+	keyPrefixVote          = "vote-user:"
+	keyPrefixTicketUsage   = "usage-ticket:"
+	keyBloomfilterUsername = "bitset-bloomfilter-username"
+)
+
+func NewUserBloomfilterBitSet() bloomfilter.BitSetProvider {
+	return newRedisBitSet(keyBloomfilterUsername)
 }
 
-type VoteCount2Usernames map[int][]string
-
-func (tx *tx) UpdateVoteCountBatch(votes VoteCount2Usernames) error {
-	for count, usernames := range votes {
-		err := tx.Model(&User{}).
-			Where("username IN ?", usernames).
-			Update("vote_count", count).Error
-		if err != nil {
-			return err
-		}
+func NewTicketUsageCounter(ttl time.Duration, limit int) *Counter {
+	return &Counter{
+		rdb:       rdb,
+		keyPrefix: keyPrefixTicketUsage,
+		ttl:       ttl,
+		limit:     limit,
 	}
-	return nil
-}
-
-var keyVoteCount = "vote-count-%s"
-var keySetUserUpdated = "vote-count-modified"
-
-func (tx rtx) IncrVoteCount(user string) (count int64, err error) {
-	key := fmt.Sprintf(keyVoteCount, user)
-	return tx.Incr(tx.ctx, key).Result()
-}
-
-func (tx rtx) SetVoteCount(user string, count int) (err error) {
-	key := fmt.Sprintf(keyVoteCount, user)
-	return tx.Set(tx.ctx, key, count, 0).Err()
-}
-
-func (tx rtx) RecordUserModified(user []string) error {
-	return tx.SAdd(tx.ctx, keySetUserUpdated, user).Err()
-}
-
-func GetUsersModified(ctx context.Context) ([]string, error) {
-	res := rdb.SMembers(ctx, keySetUserUpdated)
-	return res.Val(), res.Err()
-}
-
-func GetVoteCountByCache(ctx context.Context, user string) (count string, err error) {
-	key := fmt.Sprintf(keyTicketUsageCount, user)
-	res := rdb.Get(ctx, key)
-	return res.Val(), res.Err()
 }

@@ -52,7 +52,7 @@ func Generate() (ticketID string, ticketStr string, err error) {
 		},
 		Claims: &TicketClaims{
 			IssuedAt:  time.Now().Unix(),
-			ExpiresAt: time.Now().Add(config.C.Ticket.Expiration.Duration).Unix(),
+			ExpiresAt: time.Now().Add(config.C.Ticket.TTL.Duration).Unix(),
 			SubjectID: ticketID,
 		},
 	}

@@ -3,9 +3,7 @@ package schema
 import (
 	"context"
 
-	"github.com/YiNNx/WeVote/internal/services/captcha"
-	ticketsrv "github.com/YiNNx/WeVote/internal/services/ticket"
-	"github.com/YiNNx/WeVote/internal/services/vote"
+	"github.com/YiNNx/WeVote/internal/services"
 )
 
 const (
@@ -14,36 +12,35 @@ const (
 )
 
 // Vote is the resolver for the vote field.
-func (r *mutationResolver) Vote(ctx context.Context, users []string, ticket string, recaptchaToken *string) (string, error) {
-	err := captcha.VerifyCaptchaIfCaptchaOpened(recaptchaToken)
+func (r *mutationResolver) Vote(ctx context.Context, users []string, ticket string, recaptchaToken *string) (bool, error) {
+	err := services.VerifyCaptchaIfCaptchaOpened(recaptchaToken)
 	if err != nil {
-		return statusFailed, err
+		return false, err
 	}
 
-	ticketID, err := ticketsrv.ParseAndVerify(ticket)
+	ticketID, err := services.ParseAndVerifyTicket(ticket)
 	if err != nil {
-		return statusFailed, err
+		return false, err
 	}
 
-	userSet, err := vote.DedupicateAndBloomFilter(ctx, users)
+	userSet, err := services.DedupicateAndBloomFilter(ctx, users)
 	if err != nil {
-		return statusFailed, err
+		return false, err
 	}
 
-	err = vote.ProcessVote(ctx, ticketID, userSet)
+	err = services.ProcessVote(ctx, ticketID, userSet)
 	if err != nil {
-		return statusFailed, err
+		return false, err
 	}
 
-	return statusSucceeded, nil
+	return true, nil
 }
 
 // GetUserVotes is the resolver for the getUserVotes field.
 func (r *queryResolver) GetUserVotes(ctx context.Context, username string) (*int, error) {
-	err := vote.ProcessBloomFilter(ctx, username)
+	err := services.ProcessBloomFilter(ctx, username)
 	if err != nil {
 		return nil, err
 	}
-	count, err := vote.GetVoteCount(ctx, username)
-	return &count, err
+	return services.GetVoteCount(ctx, username)
 }

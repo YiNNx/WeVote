@@ -9,6 +9,7 @@ import (
 	"gorm.io/gorm"
 
 	"github.com/YiNNx/WeVote/internal/common/log"
+	"github.com/YiNNx/WeVote/internal/config"
 )
 
 var (
@@ -16,30 +17,10 @@ var (
 	rdb *redis.Ring
 )
 
-type rtx struct {
-	redis.Pipeliner
-	ctx context.Context
-}
-
-type tx struct {
-	*gorm.DB
-}
-
-func BeginRedisTx(ctx context.Context) rtx {
-	return rtx{
-		Pipeliner: rdb.TxPipeline(),
-		ctx:       ctx,
-	}
-}
-
-func BeginPostgresTx() tx {
-	return tx{db.Begin()}
-}
-
-func initPostgresConn(dsn string) {
+func initPostgresConn() {
 	var err error
 
-	db, err = gorm.Open(postgres.New(postgres.Config{DSN: dsn}))
+	db, err = gorm.Open(postgres.New(postgres.Config{DSN: config.C.Postgres.DSN}))
 	if err != nil {
 		log.Logger.Error("postgres connection failed: ", err)
 		return
@@ -53,9 +34,8 @@ func initPostgresConn(dsn string) {
 	log.Logger.Info("PostgreSQL server connected!")
 }
 
-func initRedisClusterConns(addrs []string) {
-	var err error
-
+func initRedisClusterConns() {
+	addrs := config.C.Redis.Addrs
 	rdbAddrs := make(map[string]string, len(addrs))
 	for i, addr := range addrs {
 		rdbAddrs[fmt.Sprintf("shard%d", i)] = addr
@@ -65,7 +45,7 @@ func initRedisClusterConns(addrs []string) {
 		Addrs: rdbAddrs,
 	})
 
-	err = rdb.ForEachShard(context.Background(), func(ctx context.Context, shard *redis.Client) error {
+	err := rdb.ForEachShard(context.Background(), func(ctx context.Context, shard *redis.Client) error {
 		return shard.Ping(ctx).Err()
 	})
 
@@ -76,8 +56,8 @@ func initRedisClusterConns(addrs []string) {
 	log.Logger.Info("Redis server connected!")
 }
 
-func InitIOWrapper(postgresDSN string, redisAddrs []string) {
-	initPostgresConn(postgresDSN)
-	initRedisClusterConns(redisAddrs)
-	initVoteDataWrapper(rdb, db)
+func InitIOWrapper() {
+	initPostgresConn()
+	initRedisClusterConns()
+	initVoteDataWrapper()
 }

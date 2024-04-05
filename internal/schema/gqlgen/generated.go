@@ -56,11 +56,11 @@ type ComplexityRoot struct {
 }
 
 type MutationResolver interface {
-	Vote(ctx context.Context, users []string, ticket string, recaptchaToken *string) (string, error)
+	Vote(ctx context.Context, users []string, ticket string, recaptchaToken *string) (bool, error)
 }
 type QueryResolver interface {
 	GetUserVotes(ctx context.Context, username string) (*int, error)
-	GetTicket(ctx context.Context) (*string, error)
+	GetTicket(ctx context.Context) (string, error)
 }
 
 type executableSchema struct {
@@ -217,13 +217,13 @@ func (ec *executionContext) introspectType(name string) (*introspection.Type, er
 }
 
 var sources = []*ast.Source{
-	{Name: "../../scripts/schema.graphql", Input: `type Query {
+	{Name: "../../../scripts/schema.graphql", Input: `type Query {
   getUserVotes(username: String!): Int
-  getTicket: String
+  getTicket: String!
 }
 
 type Mutation {
-  vote(users: [String!]!, ticket: String!,recaptchaToken: String): String!
+  vote(users: [String!]!, ticket: String!,recaptchaToken: String): Boolean!
 }`, BuiltIn: false},
 }
 var parsedSchema = gqlparser.MustLoadSchema(sources...)
@@ -359,9 +359,9 @@ func (ec *executionContext) _Mutation_vote(ctx context.Context, field graphql.Co
 		}
 		return graphql.Null
 	}
-	res := resTmp.(string)
+	res := resTmp.(bool)
 	fc.Result = res
-	return ec.marshalNString2string(ctx, field.Selections, res)
+	return ec.marshalNBoolean2bool(ctx, field.Selections, res)
 }
 
 func (ec *executionContext) fieldContext_Mutation_vote(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
@@ -371,7 +371,7 @@ func (ec *executionContext) fieldContext_Mutation_vote(ctx context.Context, fiel
 		IsMethod:   true,
 		IsResolver: true,
 		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
-			return nil, errors.New("field of type String does not have child fields")
+			return nil, errors.New("field of type Boolean does not have child fields")
 		},
 	}
 	defer func() {
@@ -461,11 +461,14 @@ func (ec *executionContext) _Query_getTicket(ctx context.Context, field graphql.
 		return graphql.Null
 	}
 	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
 		return graphql.Null
 	}
-	res := resTmp.(*string)
+	res := resTmp.(string)
 	fc.Result = res
-	return ec.marshalOString2ᚖstring(ctx, field.Selections, res)
+	return ec.marshalNString2string(ctx, field.Selections, res)
 }
 
 func (ec *executionContext) fieldContext_Query_getTicket(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
@@ -2488,6 +2491,9 @@ func (ec *executionContext) _Query(ctx context.Context, sel ast.SelectionSet) gr
 					}
 				}()
 				res = ec._Query_getTicket(ctx, field)
+				if res == graphql.Null {
+					atomic.AddUint32(&fs.Invalids, 1)
+				}
 				return res
 			}
 

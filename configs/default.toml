@@ -11,10 +11,14 @@ dsn = "postgres://localhost:5432/wevote?sslmode=disable"
 [redis]
 addr = [':6377', ':6378']
 
+[vote]
+cache_ttl = '1h'
+write_back_period = '5s'
+
 [ticket]
 secret = 'secret'
-expiration = '2s'
-upper_limit = 10000
+ttl = '2s'
+usage_limit = 10000
 
 [captcha]
 open = false

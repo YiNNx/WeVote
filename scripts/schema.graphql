@@ -1,8 +1,8 @@
 type Query {
   getUserVotes(username: String!): Int
-  getTicket: String
+  getTicket: String!
 }
 
 type Mutation {
-  vote(users: [String!]!, ticket: String!,recaptchaToken: String): String!
+  vote(users: [String!]!, ticket: String!,recaptchaToken: String): Boolean!
 }

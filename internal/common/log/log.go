@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/TwiN/go-color"
+	"github.com/YiNNx/WeVote/internal/config"
 	nested "github.com/antonfisher/nested-logrus-formatter"
 	rotatelogs "github.com/lestrrat/go-file-rotatelogs"
 	"github.com/rifflock/lfshook"
@@ -17,8 +18,8 @@ import (
 
 var Logger *logrus.Logger
 
-func InitLogger(path string, debug bool) {
-	Logger = getLogger(path, debug)
+func InitLogger() {
+	Logger = getLogger(config.C.Log.Path, config.C.Server.DebugMode)
 	Logger.Info("logger started")
 }
 

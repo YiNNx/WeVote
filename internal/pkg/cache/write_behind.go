@@ -2,10 +2,13 @@ package cache
 
 import (
 	"context"
-	"errors"
-	"fmt"
+	"time"
 
 	"github.com/redis/go-redis/v9"
+
+	"github.com/YiNNx/WeVote/internal/common/errors"
+	"github.com/YiNNx/WeVote/internal/common/log"
+	"github.com/YiNNx/WeVote/internal/pkg/cron"
 )
 
 type WriteBehindWrapper[K, V comparable] interface {
@@ -24,6 +27,7 @@ type cacheRedis[K, V comparable] interface {
 	redis.UniversalClient
 
 	Key(K) string
+	GetTTL() time.Duration
 	CacheGet(context.Context, K) (*V, error)
 	CacheGetBatch(context.Context, []K) (map[K]V, error)
 	CacheIncr(context.Context, K) error
@@ -78,7 +82,7 @@ func (p *writeBehindWrapper[K, V]) Get(ctx context.Context, key K) (val *V, err 
 			return redis.TxFailedErr
 		}
 		pipe := tx.TxPipeline()
-		err = pipe.Set(ctx, keyWatch, val, 0).Err()
+		err = pipe.Set(ctx, keyWatch, val, p.cache.GetTTL()).Err()
 		if err != nil {
 			return err
 		}
@@ -88,7 +92,7 @@ func (p *writeBehindWrapper[K, V]) Get(ctx context.Context, key K) (val *V, err 
 	err = p.cache.Watch(ctx, txWatch, keyWatch)
 
 	// if the err is caused by the optimistic lock, just re-read the cache and return
-	if errors.Is(err, redis.TxFailedErr) {
+	if err == redis.TxFailedErr {
 		return p.cache.CacheGet(ctx, key)
 	}
 
@@ -102,7 +106,7 @@ func (p *writeBehindWrapper[K, V]) Incr(ctx context.Context, key K) error {
 		return err
 	}
 	if val == nil {
-		return fmt.Errorf("invalid key")
+		return errors.ErrInvalidKey
 	}
 
 	// cause the incr operation is atomic, there's no need to use lock
@@ -137,14 +141,20 @@ func (p *writeBehindWrapper[K, V]) WriteBack(ctx context.Context) error {
 	return nil
 }
 
-func NewWriteBehindDataWrapper[K, V comparable](
-	cache cacheRedis[K, V],
-	database database[K, V],
-	dirtyKeyTracker dirtyKeyTracker[K],
-) WriteBehindWrapper[K, V] {
-	return &writeBehindWrapper[K, V]{
+type WriteBehindConfig struct {
+	WriteBackPeriod time.Duration
+}
+
+func NewWriteBehindDataWrapper[K, V comparable](config WriteBehindConfig, cache cacheRedis[K, V], database database[K, V], dirtyKeyTracker dirtyKeyTracker[K]) WriteBehindWrapper[K, V] {
+	wrapper := &writeBehindWrapper[K, V]{
 		cache:           cache,
 		database:        database,
 		dirtyKeyTracker: dirtyKeyTracker,
 	}
+	writeBackJob := func() {
+		wrapper.WriteBack(context.Background())
+		log.Logger.Info("proccess write-back")
+	}
+	cron.NewCronJob(config.WriteBackPeriod, writeBackJob).Start()
+	return wrapper
 }

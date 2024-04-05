@@ -1,4 +1,4 @@
-package vote
+package services
 
 import (
 	"context"
@@ -18,8 +18,8 @@ type UsernameSet map[string]struct{}
 // DedupicateAndBloomFilter 合并重复参数，并使用布隆过滤器来检验是否含有无效字段
 // 若含有无效字段则返回错误
 func DedupicateAndBloomFilter(ctx context.Context, usernames []string) (UsernameSet, error) {
-	if int64(len(usernames)) > config.C.Ticket.UpperLimit {
-		return nil, errors.ErrTicketUsageExceed
+	if len(usernames) > config.C.Ticket.UsageLimit {
+		return nil, errors.ErrTicketLimitExceeded
 	}
 
 	usernameSet := make(UsernameSet, len(usernames))
@@ -40,18 +40,18 @@ func ProcessBloomFilter(ctx context.Context, username string) error {
 		return errors.ErrServerInternal.WithErrDetail(err)
 	}
 	if !ok {
-		return errors.ErrInvalidUsernameExisted
+		return errors.ErrInvalidUsername
 	}
 	return nil
 }
 
-func init() {
+func initBloomFilter() {
 	filterUsername = bloomfilter.NewWithEstimates(
-		1000000, 0.01,
-		models.NewRedisBitSet("bitset-bloomfilter-username"),
+		100000, 0.0001,
+		models.NewUserBloomfilterBitSet(),
 	)
 
-	usernames, err := models.GetAllUsernames()
+	usernames, err := models.FindAllExistedUser()
 	if err != nil {
 		log.Logger.Fatal(err)
 	}

@@ -1,4 +1,4 @@
-package captcha
+package services
 
 import (
 	"github.com/YiNNx/WeVote/internal/common/errors"
@@ -23,7 +23,7 @@ func VerifyCaptchaIfCaptchaOpened(recaptchaToken *string) error {
 	return nil
 }
 
-func init() {
+func initCaptchaClient() {
 	captchaClient = captcha.NewClient(
 		config.C.Captcha.RecaptchaSecret,
 	)

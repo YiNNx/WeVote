@@ -1,6 +1,9 @@
 package cron
 
 import (
+	"fmt"
+	"time"
+
 	"github.com/robfig/cron/v3"
 
 	"github.com/YiNNx/WeVote/internal/common/log"
@@ -21,4 +24,11 @@ func (job *CronJob) Start() {
 	}
 
 	c.Start()
+}
+
+func NewCronJob(period time.Duration, f func()) *CronJob {
+	return &CronJob{
+		Spec: fmt.Sprintf("@every %s", period),
+		Func: f,
+	}
 }

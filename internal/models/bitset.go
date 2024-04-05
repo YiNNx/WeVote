@@ -8,35 +8,27 @@ import (
 	"github.com/YiNNx/WeVote/pkg/bloomfilter"
 )
 
-const (
-	redisBitSetMaxLength = 4 * 1024 * 1024 * 1024
-)
-
 type redisBitSet struct {
 	rdb redis.UniversalClient
 	key string
 }
 
-func NewRedisBitSet(key string) bloomfilter.BitSetProvider {
+func newRedisBitSet(key string) bloomfilter.BitSetProvider {
 	return &redisBitSet{rdb, key}
 }
 
 func (b *redisBitSet) Set(ctx context.Context, offsets []uint) error {
-	rtx := BeginRedisTx(ctx)
+	rtx := b.rdb.Pipeline()
 	for _, offset := range offsets {
-		_, err := rtx.SetBit(rtx.ctx, b.key, int64(offset/redisBitSetMaxLength), 1).Result()
-		if err != nil {
-			rtx.Discard()
-			return err
-		}
+		rtx.SetBit(ctx, b.key, int64(offset), 1)
 	}
-	_, err := rtx.Exec(rtx.ctx)
+	_, err := rtx.Exec(ctx)
 	return err
 }
 
 func (b *redisBitSet) Test(ctx context.Context, offsets []uint) (bool, error) {
 	for _, offset := range offsets {
-		res, err := b.rdb.GetBit(ctx, b.key, int64(offset/redisBitSetMaxLength)).Result()
+		res, err := b.rdb.GetBit(ctx, b.key, int64(offset)).Result()
 		if err != nil || res == 0 {
 			return false, err
 		}
