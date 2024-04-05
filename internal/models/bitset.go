@@ -3,12 +3,12 @@ package models
 import (
 	"context"
 
-	"github.com/YiNNx/WeVote/pkg/bloomfilter"
 	"github.com/redis/go-redis/v9"
+
+	"github.com/YiNNx/WeVote/pkg/bloomfilter"
 )
 
 const (
-	keyVoteBloomFilter   = "vote-bloom-filter"
 	redisBitSetMaxLength = 4 * 1024 * 1024 * 1024
 )
 
@@ -17,20 +17,20 @@ type redisBitSet struct {
 	key string
 }
 
-func NewRedisBitSet() bloomfilter.BitSetProvider {
-	return &redisBitSet{rdb, keyVoteBloomFilter}
+func NewRedisBitSet(key string) bloomfilter.BitSetProvider {
+	return &redisBitSet{rdb, key}
 }
 
 func (b *redisBitSet) Set(ctx context.Context, offsets []uint) error {
-	rtx := b.rdb.Pipeline()
+	rtx := BeginRedisTx(ctx)
 	for _, offset := range offsets {
-		_, err := rtx.SetBit(ctx, b.key, int64(offset/redisBitSetMaxLength), 1).Result()
+		_, err := rtx.SetBit(rtx.ctx, b.key, int64(offset/redisBitSetMaxLength), 1).Result()
 		if err != nil {
 			rtx.Discard()
 			return err
 		}
 	}
-	_, err := rtx.Exec(ctx)
+	_, err := rtx.Exec(rtx.ctx)
 	return err
 }
 

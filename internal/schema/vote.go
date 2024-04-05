@@ -15,12 +15,12 @@ const (
 
 // Vote is the resolver for the vote field.
 func (r *mutationResolver) Vote(ctx context.Context, users []string, ticket string, recaptchaToken *string) (string, error) {
-	err := captcha.VerifyCaptchaIfCaptchaOpen(recaptchaToken)
+	err := captcha.VerifyCaptchaIfCaptchaOpened(recaptchaToken)
 	if err != nil {
 		return statusFailed, err
 	}
 
-	ticketClaims, err := ticketsrv.Parser.ParseAndVerify(ticket)
+	ticketID, err := ticketsrv.ParseAndVerify(ticket)
 	if err != nil {
 		return statusFailed, err
 	}
@@ -30,7 +30,7 @@ func (r *mutationResolver) Vote(ctx context.Context, users []string, ticket stri
 		return statusFailed, err
 	}
 
-	err = vote.Vote(ctx, ticketClaims.SubjectId, userSet)
+	err = vote.ProcessVote(ctx, ticketID, userSet)
 	if err != nil {
 		return statusFailed, err
 	}
@@ -40,7 +40,7 @@ func (r *mutationResolver) Vote(ctx context.Context, users []string, ticket stri
 
 // GetUserVotes is the resolver for the getUserVotes field.
 func (r *queryResolver) GetUserVotes(ctx context.Context, username string) (*int, error) {
-	err := vote.BloomFilter(ctx, username)
+	err := vote.ProcessBloomFilter(ctx, username)
 	if err != nil {
 		return nil, err
 	}

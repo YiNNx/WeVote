@@ -11,7 +11,7 @@ import (
 	"github.com/YiNNx/WeVote/internal/models"
 )
 
-func Vote(ctx context.Context, ticketID string, users UsernameSet) error {
+func ProcessVote(ctx context.Context, ticketID string, users UsernameSet) error {
 	rtx := models.BeginRedisTx(ctx)
 	userCount := len(users)
 	count, err := rtx.IncrTicketUsageCount(ticketID, userCount)

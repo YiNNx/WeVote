@@ -4,10 +4,11 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/YiNNx/WeVote/internal/common/log"
 	"github.com/redis/go-redis/v9"
 	"gorm.io/driver/postgres"
 	"gorm.io/gorm"
+
+	"github.com/YiNNx/WeVote/internal/common/log"
 )
 
 var (
@@ -26,7 +27,7 @@ type tx struct {
 
 func BeginRedisTx(ctx context.Context) rtx {
 	return rtx{
-		Pipeliner: rdb.Pipeline(),
+		Pipeliner: rdb.TxPipeline(),
 		ctx:       ctx,
 	}
 }

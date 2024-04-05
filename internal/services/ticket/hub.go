@@ -4,48 +4,51 @@ import (
 	"sync"
 
 	"github.com/YiNNx/WeVote/internal/common/log"
+	"github.com/YiNNx/WeVote/internal/pkg/ticket"
 )
 
-type Ticket interface {
-	Grant() (tid string, err error)
-	Access() string
-}
+// gTicket is the global Ticket instance
+var gTicket *globalTicket
 
 type globalTicket struct {
-	ticket   string
-	provider TicketProvider
-	mutex    sync.RWMutex
+	ticket string
+	// Use read-write locks to deal with multi-threaded data race
+	mutex sync.RWMutex
 }
 
-func (t *globalTicket) Grant() (tid string, err error) {
-	tid, ticket, err := t.provider.Generate()
+// Access externally exposed access method
+func Access() string {
+	// Enable read lock
+	gTicket.mutex.RLock()
+	defer gTicket.mutex.RUnlock()
+
+	return gTicket.ticket
+}
+
+// globalGrant issues a ticket and uses it to update the global ticket
+func globalGrant() (tid string, err error) {
+	tid, ticket, err := ticket.Generate()
 	if err != nil {
 		return "", err
 	}
 
-	t.mutex.Lock()
-	defer t.mutex.Unlock()
+	// Enable write lock
+	gTicket.mutex.Lock()
+	defer gTicket.mutex.Unlock()
 
-	t.ticket = ticket
+	gTicket.ticket = ticket
 
 	return tid, nil
 }
 
-func (t *globalTicket) Access() string {
-	t.mutex.RLock()
-	defer t.mutex.RUnlock()
-
-	return t.ticket
-}
-
-func initGlobalTicket(provider TicketProvider) Ticket {
-	_, initTicket, err := provider.Generate()
+// init the global Ticket instance
+func init() {
+	_, initTicket, err := ticket.Generate()
 	if err != nil {
 		log.Logger.Fatal(err)
 	}
-	return &globalTicket{
-		ticket:   initTicket,
-		provider: provider,
-		mutex:    sync.RWMutex{},
+	gTicket = &globalTicket{
+		ticket: initTicket,
+		mutex:  sync.RWMutex{},
 	}
 }

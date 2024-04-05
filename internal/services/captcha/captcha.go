@@ -8,7 +8,8 @@ import (
 
 var captchaClient captcha.CaptchaClient
 
-func VerifyCaptchaIfCaptchaOpen(recaptchaToken *string) error {
+// VerifyCaptchaIfCaptchaOpened verifies the recaptcha token if the config option is opened
+func VerifyCaptchaIfCaptchaOpened(recaptchaToken *string) error {
 	if !config.C.Captcha.Open {
 		return nil
 	}
@@ -22,7 +23,7 @@ func VerifyCaptchaIfCaptchaOpen(recaptchaToken *string) error {
 	return nil
 }
 
-func InitCaptchaClient() {
+func init() {
 	captchaClient = captcha.NewClient(
 		config.C.Captcha.RecaptchaSecret,
 	)
