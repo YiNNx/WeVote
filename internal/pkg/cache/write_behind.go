@@ -126,7 +126,12 @@ func NewWriteBehindDataWrapper[K, V comparable](config WriteBehindConfig, cache 
 		dirtyKeyTracker: dirtyKeyTracker,
 	}
 	writeBackJob := func() {
-		wrapper.WriteBack(context.Background())
+		ctx, cancel := context.WithTimeout(context.Background(), 200*time.Millisecond)
+		defer cancel()
+		err := wrapper.WriteBack(ctx)
+		if err != nil {
+			log.Logger.Error(err)
+		}
 		log.Logger.Info("proccess write-back")
 	}
 	cronjob.NewCronJob(config.WriteBackPeriod, writeBackJob).Start()

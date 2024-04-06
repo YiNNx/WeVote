@@ -1,0 +1,65 @@
+version: "3.8"
+
+services:
+  postgres: 
+    image: postgres:latest
+    volumes:
+      - /etc/localtime:/etc/localtime:ro
+      - ./data/postgres:/data/bd
+    environment:
+      - POSTGRES_DB=wevote
+      - POSTGRES_USER=root
+      - POSTGRES_PASSWORD=password
+    container_name: app_postgres
+    ports:
+      - "5432:5432"
+    restart: always
+    networks:
+      - app
+  redis6379:
+    image: redis:latest
+    ports:
+      - "6379:6379"
+    environment:
+      - TZ=Asia/Shanghai
+    container_name: app_redis6379
+    volumes:
+      - .data/redis:/data
+      - /etc/localtime:/etc/localtime:ro
+    privileged: true
+    tty: true
+    networks:
+      - app
+  redis6378:
+    image: redis:latest
+    ports:
+      - "6378:6379"
+    environment:
+      - TZ=Asia/Shanghai
+    container_name: app_redis6378
+    volumes:
+      - .data/redis:/data
+      - /etc/localtime:/etc/localtime:ro
+    privileged: true
+    tty: true
+    networks:
+      - app
+  redis6377:
+    image: redis:latest
+    ports:
+      - "6377:6379"
+    environment:
+      - TZ=Asia/Shanghai
+    container_name: app_redis6377
+    volumes:
+      - .data/redis:/data
+      - /etc/localtime:/etc/localtime:ro
+    privileged: true
+    tty: true
+    networks:
+      - app
+
+networks:
+  app:
+    driver: overlay
+    attachable: true

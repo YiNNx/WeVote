@@ -11,10 +11,6 @@ import (
 // For illegal requests: If intercepted by the Bloom filter (success rate >= 99.99%), the entire batch will not be executed.
 // If it is not intercepted, it will be executed in sequence. If the execution of illegal fields fails, it will be skipped.
 func ProcessVote(ctx context.Context, ticketID string, users UsernameSet) error {
-	err := TicketConsume(ctx, ticketID, len(users))
-	if err != nil {
-		return err
-	}
 	for user := range users {
 		err := models.VoteDataWrapper.Incr(ctx, user)
 		if err != nil && err != errors.ErrInvalidKey {

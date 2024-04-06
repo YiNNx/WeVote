@@ -62,13 +62,12 @@ func (d *duration) UnmarshalText(text []byte) error {
 	return err
 }
 
-func Init(path string) error {
-	var config *Config
+func Init(path string) {
+	config := &Config{}
 	_, err := toml.DecodeFile(path, config)
 	if err != nil {
-		return err
+		log.Fatal(err)
 	}
 	log.Println("Config loaded.")
 	C = config
-	return nil
 }

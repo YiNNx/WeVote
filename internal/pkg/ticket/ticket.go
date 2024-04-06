@@ -56,13 +56,13 @@ func Generate() (ticketID string, ticketStr string, err error) {
 			SubjectID: ticketID,
 		},
 	}
-	ticketStr, err = ticket.SignedString(config.C.Ticket.Secret)
+	ticketStr, err = ticket.SignedString([]byte(config.C.Ticket.Secret))
 	return ticketID, ticketStr, err
 }
 
 // ParseAndVerify parses the claims of the ticket and verifies the signature
 func ParseAndVerify(ticketStr string) (*TicketClaims, error) {
-	token, err := jwt.ParseWithClaims(ticketStr, &TicketClaims{}, func(t *jwt.Token) (interface{}, error) { return config.C.Ticket.Secret, nil })
+	token, err := jwt.ParseWithClaims(ticketStr, &TicketClaims{}, func(t *jwt.Token) (interface{}, error) { return []byte(config.C.Ticket.Secret), nil })
 	if err != nil {
 		return nil, err
 	}

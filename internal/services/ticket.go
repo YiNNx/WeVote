@@ -8,8 +8,8 @@ import (
 	"github.com/YiNNx/WeVote/internal/common/log"
 	"github.com/YiNNx/WeVote/internal/config"
 	"github.com/YiNNx/WeVote/internal/models"
-	"github.com/YiNNx/WeVote/pkg/cronjob"
 	"github.com/YiNNx/WeVote/internal/pkg/ticket"
+	"github.com/YiNNx/WeVote/pkg/cronjob"
 )
 
 func GetTicket(ctx context.Context) (string, error) {
@@ -58,7 +58,7 @@ func (t *serviceTicket) refresh(ctx context.Context) error {
 	if err != nil {
 		return err
 	}
-
+	log.Logger.Info("refreshed the ticket: " + ticket)
 	return nil
 }
 
@@ -75,6 +75,15 @@ func initServiceTicket() {
 }
 
 func StartCronJobTicketRefresh() {
+	srvTicket = &serviceTicket{
+		ticket: models.InitGlobalTicket(
+			config.C.Ticket.TTL.Duration,
+		),
+		counter: models.InitTicketUsageCounter(
+			config.C.Ticket.TTL.Duration+time.Duration(1)*time.Second,
+			config.C.Ticket.UsageLimit,
+		),
+	}
 	cronJobTicketRefresh := cronjob.NewCronJob(
 		config.C.Ticket.TTL.Duration,
 		func() {
@@ -82,8 +91,9 @@ func StartCronJobTicketRefresh() {
 			defer cancel()
 			err := srvTicket.refresh(ctx)
 			if err != nil {
-				log.Logger.Fatal(err)
+				log.Logger.Error(err)
 			}
 		})
+	cronJobTicketRefresh.Func()
 	cronJobTicketRefresh.Start()
 }

@@ -11,12 +11,9 @@ import (
 
 func main() {
 	confPath := os.Getenv("CONF_PATH")
-	err := config.Init(confPath)
-	if err != nil {
-		log.Logger.Fatal(err)
-	}
+	config.Init(confPath)
 	log.InitLogger()
-	models.InitIOWrapper()
+	models.InitRedisClusterConns()
 
 	services.StartCronJobTicketRefresh()
 

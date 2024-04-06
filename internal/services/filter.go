@@ -15,8 +15,8 @@ var filterUsername bloomfilter.BloomFilter
 
 type UsernameSet map[string]struct{}
 
-// DedupicateAndBloomFilter 合并重复参数，并使用布隆过滤器来检验是否含有无效字段
-// 若含有无效字段则返回错误
+// DedupicateAndBloomFilter merges duplicate params and uses a bloom filter to check whether there are invalid usernames
+// If it contains invalid fields, an error will be returned.
 func DedupicateAndBloomFilter(ctx context.Context, usernames []string) (UsernameSet, error) {
 	if len(usernames) > config.C.Ticket.UsageLimit {
 		return nil, errors.ErrTicketLimitExceeded

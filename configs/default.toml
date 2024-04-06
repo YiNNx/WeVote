@@ -6,10 +6,10 @@ addr = ':8088'
 path = 'output/log'
 
 [postgres]
-dsn = "postgres://localhost:5432/wevote?sslmode=disable"
+dsn = "postgres://root:password@localhost:5432/wevote?sslmode=disable"
 
 [redis]
-addr = [':6377', ':6378']
+addr = [':6377', ':6378', ':6379']
 
 [vote]
 cache_ttl = '1h'

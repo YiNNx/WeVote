@@ -4,9 +4,6 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/go-redsync/redsync/v4"
-	redsyncredis "github.com/go-redsync/redsync/v4/redis"
-	"github.com/go-redsync/redsync/v4/redis/goredis/v9"
 	"github.com/redis/go-redis/v9"
 	"gorm.io/driver/postgres"
 	"gorm.io/gorm"
@@ -18,8 +15,7 @@ import (
 var (
 	db *gorm.DB
 
-	rdb     *redis.Ring
-	redlock *redsync.Redsync
+	rdb *redis.Ring
 )
 
 func initPostgresConn() {
@@ -45,7 +41,7 @@ func initPostgresConn() {
 	log.Logger.Info("PostgreSQL server connected!")
 }
 
-func initRedisClusterConns() {
+func InitRedisClusterConns() {
 	addrs := config.C.Redis.Addrs
 	rdbAddrs := make(map[string]string, len(addrs))
 	for i, addr := range addrs {
@@ -56,25 +52,18 @@ func initRedisClusterConns() {
 		Addrs: rdbAddrs,
 	})
 
-	syncPools := []redsyncredis.Pool{}
 	err := rdb.ForEachShard(context.Background(), func(ctx context.Context, shard *redis.Client) error {
-		if err := shard.Ping(ctx).Err(); err != nil {
-			return err
-		}
-		syncPools = append(syncPools, goredis.NewPool(shard))
-		return nil
+		return shard.Ping(ctx).Err()
 	})
 	if err != nil {
 		log.Logger.Fatal(err)
 	}
-
-	redlock = redsync.New(syncPools...)
 
 	log.Logger.Info("Redis server connected!")
 }
 
 func InitIOWrapper() {
 	initPostgresConn()
-	initRedisClusterConns()
+	InitRedisClusterConns()
 	initVoteDataWrapper()
 }

@@ -28,6 +28,11 @@ func (r *mutationResolver) Vote(ctx context.Context, users []string, ticket stri
 		return false, err
 	}
 
+	err = services.TicketConsume(ctx, ticketID, len(userSet))
+	if err != nil {
+		return false, err
+	}
+
 	err = services.ProcessVote(ctx, ticketID, userSet)
 	if err != nil {
 		return false, err
