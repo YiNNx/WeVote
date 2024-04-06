@@ -4,11 +4,9 @@ import (
 	"context"
 	"time"
 
-	"github.com/redis/go-redis/v9"
-
 	"github.com/YiNNx/WeVote/internal/common/errors"
 	"github.com/YiNNx/WeVote/internal/common/log"
-	"github.com/YiNNx/WeVote/internal/pkg/cron"
+	"github.com/YiNNx/WeVote/pkg/cronjob"
 )
 
 type WriteBehindWrapper[K, V comparable] interface {
@@ -18,19 +16,16 @@ type WriteBehindWrapper[K, V comparable] interface {
 }
 
 type writeBehindWrapper[K, V comparable] struct {
-	cache           cacheRedis[K, V]
+	cache           cache[K, V]
 	database        database[K, V]
 	dirtyKeyTracker dirtyKeyTracker[K]
 }
 
-type cacheRedis[K, V comparable] interface {
-	redis.UniversalClient
-
-	Key(K) string
-	GetTTL() time.Duration
-	CacheGet(context.Context, K) (*V, error)
-	CacheGetBatch(context.Context, []K) (map[K]V, error)
-	CacheIncr(context.Context, K) error
+type cache[K, V comparable] interface {
+	Get(context.Context, K) (*V, error)
+	GetBatch(context.Context, []K) (map[K]V, error)
+	Incr(context.Context, K) error
+	SetNX(context.Context, K, V) (bool, error)
 }
 
 type database[K, V comparable] interface {
@@ -39,23 +34,21 @@ type database[K, V comparable] interface {
 }
 
 type dirtyKeyTracker[K comparable] interface {
-	RWMutex
-
 	GetAll() []K
 	Put(K)
 	Clear()
+
+	Mutex
 }
 
-type RWMutex interface {
+type Mutex interface {
 	Lock()
 	Unlock()
-	RLock()
-	RUnlock()
 }
 
 func (p *writeBehindWrapper[K, V]) Get(ctx context.Context, key K) (val *V, err error) {
 	// If hit the cache, return the val directly
-	val, err = p.cache.CacheGet(ctx, key)
+	val, err = p.cache.Get(ctx, key)
 	if err != nil || val != nil {
 		return val, err
 	}
@@ -70,30 +63,13 @@ func (p *writeBehindWrapper[K, V]) Get(ctx context.Context, key K) (val *V, err 
 		return nil, nil
 	}
 
-	// If the val exists in the db, use the optimistic lock (Redis WATCH) to update cache
-	keyWatch := p.cache.Key(key)
-	txWatch := func(tx *redis.Tx) error {
-		// If the key has been or is being updated by other threads, the below operations will fail
-		cacheExists, err := tx.Exists(ctx, keyWatch).Result()
-		if err != nil {
-			return err
-		}
-		if cacheExists != 0 {
-			return redis.TxFailedErr
-		}
-		pipe := tx.TxPipeline()
-		err = pipe.Set(ctx, keyWatch, val, p.cache.GetTTL()).Err()
-		if err != nil {
-			return err
-		}
-		_, err = pipe.Exec(ctx)
-		return err
+	// Use the optimistic lock to update cache
+	ok, err := p.cache.SetNX(ctx, key, *val)
+	if err != nil {
+		return nil, err
 	}
-	err = p.cache.Watch(ctx, txWatch, keyWatch)
-
-	// if the err is caused by the optimistic lock, just re-read the cache and return
-	if err == redis.TxFailedErr {
-		return p.cache.CacheGet(ctx, key)
+	if !ok {
+		return p.cache.Get(ctx, key)
 	}
 
 	return val, err
@@ -109,14 +85,12 @@ func (p *writeBehindWrapper[K, V]) Incr(ctx context.Context, key K) error {
 		return errors.ErrInvalidKey
 	}
 
-	// cause the incr operation is atomic, there's no need to use lock
-	// flag the key dirty and incr
-	p.dirtyKeyTracker.RLock()
-	defer p.dirtyKeyTracker.RUnlock()
+	p.dirtyKeyTracker.Lock()
+	defer p.dirtyKeyTracker.Unlock()
 
 	p.dirtyKeyTracker.Put(key)
 
-	return p.cache.CacheIncr(ctx, key)
+	return p.cache.Incr(ctx, key)
 }
 
 func (p *writeBehindWrapper[K, V]) WriteBack(ctx context.Context) error {
@@ -126,7 +100,7 @@ func (p *writeBehindWrapper[K, V]) WriteBack(ctx context.Context) error {
 
 	dirtyKeys := p.dirtyKeyTracker.GetAll()
 
-	dirtyData, err := p.cache.CacheGetBatch(ctx, dirtyKeys)
+	dirtyData, err := p.cache.GetBatch(ctx, dirtyKeys)
 	if err != nil {
 		return err
 	}
@@ -145,7 +119,7 @@ type WriteBehindConfig struct {
 	WriteBackPeriod time.Duration
 }
 
-func NewWriteBehindDataWrapper[K, V comparable](config WriteBehindConfig, cache cacheRedis[K, V], database database[K, V], dirtyKeyTracker dirtyKeyTracker[K]) WriteBehindWrapper[K, V] {
+func NewWriteBehindDataWrapper[K, V comparable](config WriteBehindConfig, cache cache[K, V], database database[K, V], dirtyKeyTracker dirtyKeyTracker[K]) WriteBehindWrapper[K, V] {
 	wrapper := &writeBehindWrapper[K, V]{
 		cache:           cache,
 		database:        database,
@@ -155,6 +129,6 @@ func NewWriteBehindDataWrapper[K, V comparable](config WriteBehindConfig, cache 
 		wrapper.WriteBack(context.Background())
 		log.Logger.Info("proccess write-back")
 	}
-	cron.NewCronJob(config.WriteBackPeriod, writeBackJob).Start()
+	cronjob.NewCronJob(config.WriteBackPeriod, writeBackJob).Start()
 	return wrapper
 }

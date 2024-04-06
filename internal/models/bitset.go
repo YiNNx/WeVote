@@ -8,6 +8,15 @@ import (
 	"github.com/YiNNx/WeVote/pkg/bloomfilter"
 )
 
+
+const (
+	keyBloomfilterUsername = "bitset-bloomfilter-username"
+)
+
+func NewUserBloomfilterBitSet() bloomfilter.BitSetProvider {
+	return newRedisBitSet(keyBloomfilterUsername)
+}
+
 type redisBitSet struct {
 	rdb redis.UniversalClient
 	key string

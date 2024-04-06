@@ -1,7 +1,7 @@
 package services
 
 func InitServices() {
-	initGlobalSharedTicket()
+	initServiceTicket()
 	initBloomFilter()
 	initCaptchaClient()
 }

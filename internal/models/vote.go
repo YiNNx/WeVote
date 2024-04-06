@@ -12,6 +12,22 @@ import (
 	"github.com/YiNNx/WeVote/internal/pkg/cache"
 )
 
+const (
+	keyPrefixVote = "vote-user:"
+)
+
+type Vote struct {
+	gorm.Model
+	Username  string `gorm:"unique;not null"`
+	VoteCount int    `gorm:"not null;default:0"`
+}
+
+func FindAllExistedUser() ([]string, error) {
+	var usernames []string
+	err := db.Model(&Vote{}).Select("username").Find(&usernames).Error
+	return usernames, err
+}
+
 var VoteDataWrapper cache.WriteBehindWrapper[string, int]
 
 func initVoteDataWrapper() {
@@ -24,35 +40,35 @@ func initVoteDataWrapper() {
 }
 
 type voteCacheWrapper struct {
-	redis.UniversalClient
+	rdb       redis.UniversalClient
 	keyPrefix string
 	ttl       time.Duration
 }
 
-func (cache *voteCacheWrapper) Key(username string) string {
-	return cache.keyPrefix + username
+func (c *voteCacheWrapper) key(username string) string {
+	return c.keyPrefix + username
 }
 
-func (cache *voteCacheWrapper) GetTTL() time.Duration {
-	return cache.ttl
-}
-
-func (cache *voteCacheWrapper) CacheGet(ctx context.Context, username string) (*int, error) {
-	res, err := cache.Get(ctx, cache.Key(username)).Int()
+func (c *voteCacheWrapper) Get(ctx context.Context, username string) (*int, error) {
+	res, err := c.rdb.Get(ctx, c.key(username)).Int()
 	if err == redis.Nil {
 		return nil, nil
 	}
 	return &res, err
 }
 
-func (cache *voteCacheWrapper) CacheGetBatch(ctx context.Context, usernames []string) (userVotes map[string]int, err error) {
+func (c *voteCacheWrapper) SetNX(ctx context.Context, username string, vote int) (bool, error) {
+	return c.rdb.SetNX(ctx, c.key(username), vote, c.ttl).Result()
+}
+
+func (c *voteCacheWrapper) GetBatch(ctx context.Context, usernames []string) (userVotes map[string]int, err error) {
 	userVotes = make(map[string]int, len(usernames))
 
-	pipe := cache.Pipeline()
+	pipe := c.rdb.Pipeline()
 	results := make([]*redis.StringCmd, len(usernames))
 
 	for i := range usernames {
-		results[i] = pipe.Get(ctx, cache.Key(usernames[i]))
+		results[i] = pipe.Get(ctx, c.key(usernames[i]))
 	}
 	_, err = pipe.Exec(ctx)
 	if err != nil {
@@ -68,20 +84,20 @@ func (cache *voteCacheWrapper) CacheGetBatch(ctx context.Context, usernames []st
 	return userVotes, nil
 }
 
-func (cache *voteCacheWrapper) CacheIncr(ctx context.Context, username string) error {
-	cacheKey := cache.Key(username)
-	err := cache.Incr(ctx, cacheKey).Err()
+func (c *voteCacheWrapper) Incr(ctx context.Context, username string) error {
+	cacheKey := c.key(username)
+	err := c.rdb.Incr(ctx, cacheKey).Err()
 	if err != nil {
 		return err
 	}
-	return cache.Expire(ctx, cacheKey, cache.GetTTL()).Err()
+	return c.rdb.Expire(ctx, cacheKey, c.ttl).Err()
 }
 
 func newVoteCacheWrapper(rdb redis.UniversalClient, keyPrefix string, ttl time.Duration) *voteCacheWrapper {
 	return &voteCacheWrapper{
-		UniversalClient: rdb,
-		keyPrefix:       keyPrefix,
-		ttl:             ttl,
+		rdb:       rdb,
+		keyPrefix: keyPrefix,
+		ttl:       ttl,
 	}
 }
 
@@ -90,7 +106,7 @@ type voteDBWrapper struct {
 }
 
 func (db *voteDBWrapper) Select(username string) (*int, error) {
-	var user User
+	var user Vote
 	err := db.Where("username = ?", username).First(&user).Error
 	if err == gorm.ErrRecordNotFound {
 		return nil, nil
@@ -110,7 +126,7 @@ func (db *voteDBWrapper) UpdateBatch(userVotes map[string]int) error {
 	}
 
 	for vote, users := range vote2users {
-		err := db.Model(&User{}).
+		err := db.Model(&Vote{}).
 			Where("username IN ?", users).
 			Update("vote_count", vote).Error
 		if err != nil {
@@ -125,7 +141,7 @@ func newVoteDBWrapper(db *gorm.DB) *voteDBWrapper {
 }
 
 type voteDirtyKeyTracker struct {
-	sync.RWMutex
+	sync.Mutex
 	usernames []string
 }
 
@@ -143,7 +159,7 @@ func (tracker *voteDirtyKeyTracker) Clear() {
 
 func newVoteDirtyKeyTracker() *voteDirtyKeyTracker {
 	return &voteDirtyKeyTracker{
-		RWMutex:   sync.RWMutex{},
+		Mutex:     sync.Mutex{},
 		usernames: []string{},
 	}
 }

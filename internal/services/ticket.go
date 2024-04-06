@@ -2,18 +2,18 @@ package services
 
 import (
 	"context"
-	"sync"
+	"time"
 
 	"github.com/YiNNx/WeVote/internal/common/errors"
 	"github.com/YiNNx/WeVote/internal/common/log"
 	"github.com/YiNNx/WeVote/internal/config"
 	"github.com/YiNNx/WeVote/internal/models"
-	"github.com/YiNNx/WeVote/internal/pkg/cron"
+	"github.com/YiNNx/WeVote/pkg/cronjob"
 	"github.com/YiNNx/WeVote/internal/pkg/ticket"
 )
 
-func GetTicket() string {
-	return gTicket.access()
+func GetTicket(ctx context.Context) (string, error) {
+	return srvTicket.access(ctx)
 }
 
 func ParseAndVerifyTicket(ticketStr string) (ticketID string, err error) {
@@ -26,79 +26,64 @@ func ParseAndVerifyTicket(ticketStr string) (ticketID string, err error) {
 }
 
 func TicketConsume(ctx context.Context, tid string, count int) error {
-	return gTicket.consume(ctx, tid, count)
+	return srvTicket.consume(ctx, tid, count)
 }
 
-// gTicket is the global Shared Ticket instance
-var gTicket *sharedTicket
+var srvTicket *serviceTicket
 
-type sharedTicket struct {
-	ticket string
-	// Use read-write locks to deal with multi-threaded data race
-	mutex sync.RWMutex
-	// to count the limit
-	models.Counter
+type serviceTicket struct {
+	ticket  models.GlobalTicket
+	counter models.Counter
 }
 
-// access externally exposed access method
-func (t *sharedTicket) access() string {
-	// Enable read lock
-	t.mutex.RLock()
-	defer t.mutex.RUnlock()
-
-	return t.ticket
+func (t *serviceTicket) access(ctx context.Context) (string, error) {
+	return t.ticket.Access(ctx)
 }
 
-func (t *sharedTicket) consume(ctx context.Context, tid string, count int) error {
-	return t.Counter.IncreaseBy(ctx, tid, count)
+func (t *serviceTicket) consume(ctx context.Context, tid string, count int) error {
+	return t.counter.IncreaseBy(ctx, tid, count)
 }
 
-// issues a ticket and set the counter ttl
-func (t *sharedTicket) grant() error {
-	tid, err := t.generate()
+func (t *serviceTicket) refresh(ctx context.Context) error {
+	tid, ticket, err := ticket.Generate()
 	if err != nil {
 		return err
 	}
-	err = t.Counter.Set(context.Background(), tid)
+
+	err = t.counter.Set(ctx, tid)
 	if err != nil {
 		return err
 	}
+	err = t.ticket.Save(ctx, ticket)
+	if err != nil {
+		return err
+	}
+
 	return nil
 }
 
-// issues a ticket and uses it to update the global ticket
-func (t *sharedTicket) generate() (tid string, err error) {
-	tid, ticket, err := ticket.Generate()
-	if err != nil {
-		return "", err
-	}
-
-	// Enable write lock
-	t.mutex.Lock()
-	defer t.mutex.Unlock()
-
-	t.ticket = ticket
-
-	return tid, nil
-}
-
-// init the global Ticket instance
-func initGlobalSharedTicket() {
-	gTicket = &sharedTicket{
-		mutex: sync.RWMutex{},
-		Counter: *models.NewTicketUsageCounter(
+func initServiceTicket() {
+	srvTicket = &serviceTicket{
+		ticket: models.InitGlobalTicket(
 			config.C.Ticket.TTL.Duration,
+		),
+		counter: models.InitTicketUsageCounter(
+			config.C.Ticket.TTL.Duration+time.Duration(1)*time.Second,
 			config.C.Ticket.UsageLimit,
 		),
 	}
+}
 
-	cronJobTicketGrant := cron.NewCronJob(
+func StartCronJobTicketRefresh() {
+	cronJobTicketRefresh := cronjob.NewCronJob(
 		config.C.Ticket.TTL.Duration,
 		func() {
-			err := gTicket.grant()
+			ctx, cancel := context.WithTimeout(context.Background(), 200*time.Millisecond)
+			defer cancel()
+			err := srvTicket.refresh(ctx)
 			if err != nil {
 				log.Logger.Fatal(err)
 			}
 		})
-	cronJobTicketGrant.Start()
+	cronJobTicketRefresh.Start()
 }

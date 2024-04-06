@@ -13,7 +13,7 @@ addr = [':6377', ':6378']
 
 [vote]
 cache_ttl = '1h'
-write_back_period = '5s'
+write_back_period = '1min'
 
 [ticket]
 secret = 'secret'
